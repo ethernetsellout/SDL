@@ -1,14 +1,13 @@
 const std = @import("std");
 
-pub fn build(b: *std.Build) void {
-    const target = b.standardTargetOptions(.{});
-    const optimize = b.standardOptimizeOption(.{});
-
-    const lib = b.addStaticLibrary(.{
+pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.builtin.OptimizeMode, shared: bool) *std.build.CompileStep {
+    const options = .{
         .name = "SDL2",
         .target = target,
         .optimize = optimize,
-    });
+    };
+
+    const lib = if (shared) b.addSharedLibrary(options) else b.addStaticLibrary(options);
     const t = lib.target_info.target;
 
     lib.addIncludePath("include");
@@ -41,6 +40,10 @@ pub fn build(b: *std.Build) void {
             lib.linkFramework("AVFoundation");
             lib.linkFramework("Foundation");
         },
+        .linux => {
+            lib.addCSourceFiles(&linux_src_files, &.{});
+            lib.addIncludePath("submodules/systemd/src/libudev");
+        },
         else => {
             const config_header = b.addConfigHeader(.{
                 .style = .{ .cmake = .{ .path = "include/SDL_config.h.cmake" } },
@@ -51,7 +54,17 @@ pub fn build(b: *std.Build) void {
         },
     }
     lib.installHeadersDirectory("include", "SDL2");
-    b.installArtifact(lib);
+
+    return lib;
+}
+
+pub fn build(b: *std.Build) void {
+    const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
+
+    const shared = b.option(bool, "shared", "Whether to build a shared or static library") orelse false;
+
+    b.installArtifact(createSDL(b, target, optimize, shared));
 }
 
 const generic_src_files = [_][]const u8{
@@ -263,7 +276,7 @@ const linux_src_files = [_][]const u8{
     "src/core/linux/SDL_evdev.c",
     "src/core/linux/SDL_evdev_capabilities.c",
     "src/core/linux/SDL_evdev_kbd.c",
-    "src/core/linux/SDL_fcitx.c",
+    // "src/core/linux/SDL_fcitx.c",
     "src/core/linux/SDL_ibus.c",
     "src/core/linux/SDL_ime.c",
     "src/core/linux/SDL_sandbox.c",
