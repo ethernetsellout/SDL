@@ -39,6 +39,8 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <linux/joystick.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "SDL_hints.h"
 #include "SDL_joystick.h"

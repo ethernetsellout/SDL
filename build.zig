@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.builtin.OptimizeMode, shared: bool) *std.build.CompileStep {
+pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.builtin.OptimizeMode, shared: bool) !*std.build.CompileStep {
     const options = .{
         .name = "SDL2",
         .target = target,
@@ -10,13 +10,24 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
     const lib = if (shared) b.addSharedLibrary(options) else b.addStaticLibrary(options);
     const t = lib.target_info.target;
 
+    const c_flags: []const []const u8 = switch (t.os.tag) {
+        .linux => &.{
+            "-DSDL_JOYSTICK_LINUX",
+            "-DSDL_INPUT_LINUXEV",
+            "-DHAVE_LINUX_INPUT_H",
+            "-DSDL_TIMER_UNIX",
+            "-DSDL_HAPTIC_LINUX",
+        },
+        else => &.{},
+    };
+
     lib.addIncludePath("include");
-    lib.addCSourceFiles(&generic_src_files, &.{});
+    lib.addCSourceFiles(&generic_src_files, c_flags);
     lib.defineCMacro("SDL_USE_BUILTIN_OPENGL_DEFINITIONS", "1");
     lib.linkLibC();
     switch (t.os.tag) {
         .windows => {
-            lib.addCSourceFiles(&windows_src_files, &.{});
+            lib.addCSourceFiles(&windows_src_files, c_flags);
             lib.linkSystemLibrary("setupapi");
             lib.linkSystemLibrary("winmm");
             lib.linkSystemLibrary("gdi32");
@@ -26,8 +37,9 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
             lib.linkSystemLibrary("ole32");
         },
         .macos => {
-            lib.addCSourceFiles(&darwin_src_files, &.{});
-            lib.addCSourceFiles(&objective_c_src_files, &.{"-fobjc-arc"});
+            lib.addCSourceFiles(&darwin_src_files, c_flags);
+            var obj_flags = try std.mem.concat(b.allocator, []const u8, &.{ &.{"-fobjc-arc"}, c_flags });
+            lib.addCSourceFiles(&objective_c_src_files, obj_flags);
             lib.linkFramework("OpenGL");
             lib.linkFramework("Metal");
             lib.linkFramework("CoreVideo");
@@ -41,7 +53,7 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
             lib.linkFramework("Foundation");
         },
         .linux => {
-            lib.addCSourceFiles(&linux_src_files, &.{});
+            lib.addCSourceFiles(&linux_src_files, c_flags);
             lib.addIncludePath("submodules/systemd/src/libudev");
         },
         else => {
@@ -51,6 +63,7 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
             }, .{});
             lib.addConfigHeader(config_header);
             lib.installConfigHeader(config_header, .{});
+            lib.linkSystemLibrary("udev");
         },
     }
     lib.installHeadersDirectory("include", "SDL2");
@@ -58,13 +71,13 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
     return lib;
 }
 
-pub fn build(b: *std.Build) void {
+pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
     const shared = b.option(bool, "shared", "Whether to build a shared or static library") orelse false;
 
-    b.installArtifact(createSDL(b, target, optimize, shared));
+    b.installArtifact(try createSDL(b, target, optimize, shared));
 }
 
 const generic_src_files = [_][]const u8{
@@ -276,16 +289,35 @@ const linux_src_files = [_][]const u8{
     "src/core/linux/SDL_evdev.c",
     "src/core/linux/SDL_evdev_capabilities.c",
     "src/core/linux/SDL_evdev_kbd.c",
-    // "src/core/linux/SDL_fcitx.c",
     "src/core/linux/SDL_ibus.c",
     "src/core/linux/SDL_ime.c",
     "src/core/linux/SDL_sandbox.c",
     "src/core/linux/SDL_threadprio.c",
     "src/core/linux/SDL_udev.c",
-    "src/haptic/linux/SDL_syshaptic.c",
-    "src/hidapi/linux/hid.c",
-    "src/joystick/linux/SDL_sysjoystick.c",
+    // "src/core/linux/SDL_fcitx.c",
+
     "src/power/linux/SDL_syspower.c",
+
+    "src/hidapi/linux/hid.c",
+
+    "src/joystick/linux/SDL_sysjoystick.c",
+    "src/joystick/dummy/SDL_sysjoystick.c",
+
+    "src/sensor/dummy/SDL_dummysensor.c",
+
+    "src/thread/pthread/SDL_syscond.c",
+    "src/thread/pthread/SDL_sysmutex.c",
+    "src/thread/pthread/SDL_syssem.c",
+    "src/thread/pthread/SDL_systhread.c",
+    "src/thread/pthread/SDL_systls.c",
+
+    "src/timer/unix/SDL_systimer.c",
+
+    "src/locale/unix/SDL_syslocale.c",
+
+    "src/misc/unix/SDL_sysurl.c",
+
+    "src/haptic/linux/SDL_syshaptic.c",
 
     "src/video/wayland/SDL_waylandclipboard.c",
     "src/video/wayland/SDL_waylanddatamanager.c",

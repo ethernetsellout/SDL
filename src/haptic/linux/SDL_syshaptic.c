@@ -36,6 +36,7 @@
 #include <limits.h>             /* INT_MAX */
 #include <errno.h>              /* errno, strerror */
 #include <sys/stat.h>           /* stat */
+#include <string.h>
 
 /* Just in case. */
 #ifndef M_PI
