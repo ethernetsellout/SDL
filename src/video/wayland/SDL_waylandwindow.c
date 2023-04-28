@@ -45,6 +45,8 @@
 #include <libdecor.h>
 #endif
 
+#include "stdlib.h" //NOTE: zig patch, to get unsetenv, which caused a compile error
+
 #define FULLSCREEN_MASK (SDL_WINDOW_FULLSCREEN | SDL_WINDOW_FULLSCREEN_DESKTOP)
 
 SDL_FORCE_INLINE SDL_bool
