@@ -9,6 +9,8 @@ pub const SdlOptions = struct {
     thread_implementation: SdlThreadImplementation = .generic,
     ///The power implementation to use
     power_implementation: ?SdlPowerImplementation = null,
+    ///The thread implementation to use
+    timer_implementation: SdlTimerImplementation = .dummy,
     ///Whether or not to build SDL as a shared library
     shared: bool = false,
 };
@@ -21,6 +23,7 @@ pub fn getDefaultOptionsForTarget(target: std.zig.CrossTarget) SdlOptions {
         //Linux, UNIX and BSD-likes all will have X11 and pthreads
         options.video_implementations.x11 = true;
         options.thread_implementation = .pthread;
+        options.timer_implementation = .unix;
     }
 
     if (target.isLinux()) {
@@ -47,11 +50,13 @@ pub fn getDefaultOptionsForTarget(target: std.zig.CrossTarget) SdlOptions {
 
         options.thread_implementation = .windows;
         options.power_implementation = .windows;
+        options.timer_implementation = .windows;
     }
 
     if (target.isDarwin()) {
         options.thread_implementation = .pthread;
         options.power_implementation = .macosx;
+        options.timer_implementation = .unix;
 
         options.joystick_implementations.apple = true;
         options.video_implementations.cocoa = true;
@@ -100,6 +105,20 @@ const SdlHidApiImplementation = enum {
     libusb,
     linux,
     mac,
+    windows,
+};
+
+//NOTE: these names must match the folder names!
+const SdlTimerImplementation = enum {
+    dummy,
+    haiku,
+    n3ds,
+    ngage,
+    os2,
+    ps2,
+    psp,
+    unix,
+    vita,
     windows,
 };
 
@@ -326,6 +345,14 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
     } else {
         //if theres no power implementation, disable SDL_Power alltogether
         lib.defineCMacro("SDL_POWER_DISABLED", "1");
+    }
+
+    switch (sdl_options.timer_implementation) {
+        .ngage => lib.addCSourceFile(root_path ++ "src/timer/ngage/SDL_systimer.cpp", c_flags.items),
+        else => |value| {
+            const path = try std.mem.concat(b.allocator, u8, &.{ root_path, "src/timer/", @tagName(value), "/SDL_systimer.c" });
+            lib.addCSourceFile(path, c_flags.items);
+        },
     }
 
     { //video implementations
@@ -621,7 +648,6 @@ const windows_src_files = [_][]const u8{
     root_path ++ "src/misc/windows/SDL_sysurl.c",
     // "src/power/windows/SDL_syspower.c",
     root_path ++ "src/sensor/windows/SDL_windowssensor.c",
-    root_path ++ "src/timer/windows/SDL_systimer.c",
     // "src/video/windows/SDL_windowsclipboard.c",
     // "src/video/windows/SDL_windowsevents.c",
     // "src/video/windows/SDL_windowsframebuffer.c",
@@ -676,16 +702,9 @@ const linux_src_files = [_][]const u8{
     // "src/core/linux/SDL_fcitx.c",
     root_path ++ "src/core/unix/SDL_poll.c",
 
-    // root_path ++ "src/power/linux/SDL_syspower.c",
-
     root_path ++ "src/hidapi/linux/hid.c",
 
-    // root_path ++ "src/joystick/linux/SDL_sysjoystick.c",
-    // root_path ++ "src/joystick/dummy/SDL_sysjoystick.c",
-
     root_path ++ "src/sensor/dummy/SDL_dummysensor.c",
-
-    root_path ++ "src/timer/unix/SDL_systimer.c",
 
     root_path ++ "src/locale/unix/SDL_syslocale.c",
 
@@ -702,7 +721,6 @@ const darwin_src_files = [_][]const u8{
     root_path ++ "src/haptic/darwin/SDL_syshaptic.c",
     root_path ++ "src/joystick/darwin/SDL_iokitjoystick.c",
     // root_path ++ "src/power/macosx/SDL_syspower.c",
-    root_path ++ "src/timer/unix/SDL_systimer.c",
     root_path ++ "src/loadso/dlopen/SDL_sysloadso.c",
     root_path ++ "src/audio/disk/SDL_diskaudio.c",
     root_path ++ "src/render/opengl/SDL_render_gl.c",
@@ -903,14 +921,6 @@ const unknown_src_files = [_][]const u8{
     root_path ++ "src/thread/vita/SDL_sysmutex.c",
     root_path ++ "src/thread/vita/SDL_syssem.c",
     root_path ++ "src/thread/vita/SDL_systhread.c",
-
-    root_path ++ "src/timer/dummy/SDL_systimer.c",
-    root_path ++ "src/timer/haiku/SDL_systimer.c",
-    root_path ++ "src/timer/n3ds/SDL_systimer.c",
-    root_path ++ "src/timer/os2/SDL_systimer.c",
-    root_path ++ "src/timer/ps2/SDL_systimer.c",
-    root_path ++ "src/timer/psp/SDL_systimer.c",
-    root_path ++ "src/timer/vita/SDL_systimer.c",
 
     root_path ++ "src/video/android/SDL_androidclipboard.c",
     root_path ++ "src/video/android/SDL_androidevents.c",
