@@ -11,6 +11,8 @@ pub const SdlOptions = struct {
     power_implementation: ?SdlPowerImplementation = null,
     ///The thread implementation to use
     timer_implementation: SdlTimerImplementation = .dummy,
+    ///The locale implementation to use
+    locale_implementation: SdlLocaleImplementation = .dummy,
     ///Whether or not to build SDL as a shared library
     shared: bool = false,
 };
@@ -24,6 +26,7 @@ pub fn getDefaultOptionsForTarget(target: std.zig.CrossTarget) SdlOptions {
         options.video_implementations.x11 = true;
         options.thread_implementation = .pthread;
         options.timer_implementation = .unix;
+        options.locale_implementation = .unix;
     }
 
     if (target.isLinux()) {
@@ -51,12 +54,14 @@ pub fn getDefaultOptionsForTarget(target: std.zig.CrossTarget) SdlOptions {
         options.thread_implementation = .windows;
         options.power_implementation = .windows;
         options.timer_implementation = .windows;
+        options.locale_implementation = .windows;
     }
 
     if (target.isDarwin()) {
         options.thread_implementation = .pthread;
         options.power_implementation = .macosx;
         options.timer_implementation = .unix;
+        options.locale_implementation = .macosx;
 
         options.joystick_implementations.apple = true;
         options.video_implementations.cocoa = true;
@@ -88,7 +93,6 @@ const SdlPowerImplementation = enum {
     emscripten,
     haiku,
     linux,
-    macos,
     macosx,
     n3ds,
     psp,
@@ -120,6 +124,20 @@ const SdlTimerImplementation = enum {
     unix,
     vita,
     windows,
+};
+
+//NOTE: these names must match the folder names!
+const SdlLocaleImplementation = enum {
+    android,
+    dummy,
+    emscripten,
+    haiku,
+    macosx,
+    n3ds,
+    unix,
+    vita,
+    windows,
+    winrt,
 };
 
 const EnabledSdlJoystickImplementations = struct {
@@ -351,6 +369,16 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
         .ngage => lib.addCSourceFile(root_path ++ "src/timer/ngage/SDL_systimer.cpp", c_flags.items),
         else => |value| {
             const path = try std.mem.concat(b.allocator, u8, &.{ root_path, "src/timer/", @tagName(value), "/SDL_systimer.c" });
+            lib.addCSourceFile(path, c_flags.items);
+        },
+    }
+
+    switch (sdl_options.locale_implementation) {
+        //haiku is a .cc file (cpp?)
+        .haiku => lib.addCSourceFile(root_path ++ "src/locale/haiku/SDL_syslocale.cc", c_flags.items),
+        .macosx => @panic("TODO: handle obj-c files"),
+        else => |value| {
+            const path = try std.mem.concat(b.allocator, u8, &.{ root_path, "src/locale/", @tagName(value), "/SDL_syslocale.c" });
             lib.addCSourceFile(path, c_flags.items);
         },
     }
@@ -643,31 +671,9 @@ const windows_src_files = [_][]const u8{
     //"src/joystick/windows/SDL_windows_gaming_input.c",
 
     root_path ++ "src/loadso/windows/SDL_sysloadso.c",
-    root_path ++ "src/locale/windows/SDL_syslocale.c",
     root_path ++ "src/main/windows/SDL_windows_main.c",
     root_path ++ "src/misc/windows/SDL_sysurl.c",
-    // "src/power/windows/SDL_syspower.c",
     root_path ++ "src/sensor/windows/SDL_windowssensor.c",
-    // "src/video/windows/SDL_windowsclipboard.c",
-    // "src/video/windows/SDL_windowsevents.c",
-    // "src/video/windows/SDL_windowsframebuffer.c",
-    // "src/video/windows/SDL_windowskeyboard.c",
-    // "src/video/windows/SDL_windowsmessagebox.c",
-    // "src/video/windows/SDL_windowsmodes.c",
-    // "src/video/windows/SDL_windowsmouse.c",
-    // "src/video/windows/SDL_windowsopengl.c",
-    // "src/video/windows/SDL_windowsopengles.c",
-    // "src/video/windows/SDL_windowsshape.c",
-    // "src/video/windows/SDL_windowsvideo.c",
-    // "src/video/windows/SDL_windowsvulkan.c",
-    // "src/video/windows/SDL_windowswindow.c",
-
-    // "src/thread/windows/SDL_syscond_cv.c",
-    // "src/thread/windows/SDL_sysmutex.c",
-    // "src/thread/windows/SDL_syssem.c",
-    // "src/thread/windows/SDL_systhread.c",
-    // "src/thread/windows/SDL_systls.c",
-    // "src/thread/generic/SDL_syscond.c",
 
     root_path ++ "src/render/direct3d/SDL_render_d3d.c",
     root_path ++ "src/render/direct3d/SDL_shaders_d3d.c",
@@ -706,8 +712,6 @@ const linux_src_files = [_][]const u8{
 
     root_path ++ "src/sensor/dummy/SDL_dummysensor.c",
 
-    root_path ++ "src/locale/unix/SDL_syslocale.c",
-
     root_path ++ "src/misc/unix/SDL_sysurl.c",
 
     root_path ++ "src/haptic/linux/SDL_syshaptic.c",
@@ -738,7 +742,6 @@ const objective_c_src_files = [_][]const u8{
     //"src/hidapi/testgui/mac_support_cocoa.m",
     // This appears to be for SDL3 only.
     //"src/joystick/apple/SDL_mfijoystick.m",
-    root_path ++ "src/locale/macosx/SDL_syslocale.m",
     root_path ++ "src/misc/macosx/SDL_sysurl.m",
     // root_path ++ "src/power/uikit/SDL_syspower.m",
     root_path ++ "src/render/metal/SDL_render_metal.m",
@@ -778,12 +781,6 @@ const ios_src_files = [_][]const u8{
 };
 
 const unknown_src_files = [_][]const u8{
-    root_path ++ "src/thread/generic/SDL_syscond.c",
-    root_path ++ "src/thread/generic/SDL_sysmutex.c",
-    root_path ++ "src/thread/generic/SDL_syssem.c",
-    root_path ++ "src/thread/generic/SDL_systhread.c",
-    root_path ++ "src/thread/generic/SDL_systls.c",
-
     root_path ++ "src/audio/aaudio/SDL_aaudio.c",
     root_path ++ "src/audio/android/SDL_androidaudio.c",
     root_path ++ "src/audio/arts/SDL_artsaudio.c",
@@ -851,14 +848,6 @@ const unknown_src_files = [_][]const u8{
     root_path ++ "src/loadso/dummy/SDL_sysloadso.c",
     root_path ++ "src/loadso/os2/SDL_sysloadso.c",
 
-    root_path ++ "src/locale/android/SDL_syslocale.c",
-    root_path ++ "src/locale/dummy/SDL_syslocale.c",
-    root_path ++ "src/locale/emscripten/SDL_syslocale.c",
-    root_path ++ "src/locale/n3ds/SDL_syslocale.c",
-    root_path ++ "src/locale/unix/SDL_syslocale.c",
-    root_path ++ "src/locale/vita/SDL_syslocale.c",
-    root_path ++ "src/locale/winrt/SDL_syslocale.c",
-
     root_path ++ "src/main/android/SDL_android_main.c",
     root_path ++ "src/main/dummy/SDL_dummy_main.c",
     root_path ++ "src/main/gdk/SDL_gdk_main.c",
@@ -902,25 +891,6 @@ const unknown_src_files = [_][]const u8{
     root_path ++ "src/test/SDL_test_md5.c",
     root_path ++ "src/test/SDL_test_memory.c",
     root_path ++ "src/test/SDL_test_random.c",
-
-    root_path ++ "src/thread/n3ds/SDL_syscond.c",
-    root_path ++ "src/thread/n3ds/SDL_sysmutex.c",
-    root_path ++ "src/thread/n3ds/SDL_syssem.c",
-    root_path ++ "src/thread/n3ds/SDL_systhread.c",
-    root_path ++ "src/thread/os2/SDL_sysmutex.c",
-    root_path ++ "src/thread/os2/SDL_syssem.c",
-    root_path ++ "src/thread/os2/SDL_systhread.c",
-    root_path ++ "src/thread/os2/SDL_systls.c",
-    root_path ++ "src/thread/ps2/SDL_syssem.c",
-    root_path ++ "src/thread/ps2/SDL_systhread.c",
-    root_path ++ "src/thread/psp/SDL_syscond.c",
-    root_path ++ "src/thread/psp/SDL_sysmutex.c",
-    root_path ++ "src/thread/psp/SDL_syssem.c",
-    root_path ++ "src/thread/psp/SDL_systhread.c",
-    root_path ++ "src/thread/vita/SDL_syscond.c",
-    root_path ++ "src/thread/vita/SDL_sysmutex.c",
-    root_path ++ "src/thread/vita/SDL_syssem.c",
-    root_path ++ "src/thread/vita/SDL_systhread.c",
 
     root_path ++ "src/video/android/SDL_androidclipboard.c",
     root_path ++ "src/video/android/SDL_androidevents.c",
