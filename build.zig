@@ -223,13 +223,16 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
 
     var c_flags = std.ArrayList([]const u8).init(b.allocator);
 
+    try c_flags.append("-std=c99");
+
+    //workaround some parsing issues in the macos system-sdk in use
+    lib.defineCMacro("__kernel_ptr_semantics", "");
+
     switch (t.os.tag) {
         .linux => {
             try c_flags.appendSlice(&.{
                 "-DSDL_INPUT_LINUXEV",
                 "-DHAVE_LINUX_INPUT_H", //TODO: properly check for this like the CMake script does
-                "-DSDL_TIMER_UNIX",
-                "-DSDL_HAPTIC_LINUX",
             });
         },
         else => {},
@@ -242,6 +245,9 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
     lib.linkLibC();
     //TODO: we need to link LibCpp in some cases, like the libcpp thread implementation
     // lib.linkLibCpp();
+
+    //Define the C macro enabling the correct timer implementation
+    lib.defineCMacro(try std.mem.concat(b.allocator, u8, &.{ "SDL_TIMER_", try lazyToUpper(b.allocator, @tagName(sdl_options.timer_implementation)) }), "1");
 
     const viStructInfo: std.builtin.Type.Struct = @typeInfo(EnabledSdlVideoImplementations).Struct;
     //Iterate over all fields on the video implementations struct
@@ -289,7 +295,7 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
         }
     }
 
-    switch (t.os.tag) {
+    switch (target.getOsTag()) {
         //TODO: figure out why when linking against our built SDL it causes a linker failure `__stack_chk_fail was replaced` on windows
         .windows => {
             lib.addCSourceFiles(&windows_src_files, c_flags.items);
@@ -303,22 +309,12 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
             lib.linkSystemLibrary("ole32");
         },
         .macos => {
+            applyMacosLinkerArgs(lib);
+
             lib.addCSourceFiles(&darwin_src_files, c_flags.items);
 
             var obj_flags = try std.mem.concat(b.allocator, []const u8, &.{ &.{"-fobjc-arc"}, c_flags.items });
             lib.addCSourceFiles(&objective_c_src_files, obj_flags);
-
-            lib.linkFramework("OpenGL");
-            lib.linkFramework("Metal");
-            lib.linkFramework("CoreVideo");
-            lib.linkFramework("Cocoa");
-            lib.linkFramework("IOKit");
-            lib.linkFramework("ForceFeedback");
-            lib.linkFramework("Carbon");
-            lib.linkFramework("CoreAudio");
-            lib.linkFramework("AudioToolbox");
-            lib.linkFramework("AVFoundation");
-            lib.linkFramework("Foundation");
         },
         .linux => {
             lib.addCSourceFiles(&linux_src_files, c_flags.items);
@@ -376,7 +372,8 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
     switch (sdl_options.locale_implementation) {
         //haiku is a .cc file (cpp?)
         .haiku => lib.addCSourceFile(root_path ++ "src/locale/haiku/SDL_syslocale.cc", c_flags.items),
-        .macosx => @panic("TODO: handle obj-c files"),
+        //macos is a .m file (obj-c)
+        .macosx => lib.addCSourceFile(root_path ++ "src/locale/macosx/SDL_syslocale.m", try std.mem.concat(b.allocator, []const u8, &.{ c_flags.items, &.{"-fobjc-arc"} })),
         else => |value| {
             const path = try std.mem.concat(b.allocator, u8, &.{ root_path, "src/locale/", @tagName(value), "/SDL_syslocale.c" });
             lib.addCSourceFile(path, c_flags.items);
@@ -450,6 +447,29 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
     lib.installHeadersDirectory(root_path ++ "include", "SDL2");
 
     return lib;
+}
+
+pub fn applyMacosLinkerArgs(lib: *std.Build.CompileStep) void {
+    lib.addFrameworkPath(root_path ++ "../system-sdk/macos12/System/Library/Frameworks");
+    lib.addSystemIncludePath(root_path ++ "../system-sdk/macos12/usr/include");
+    lib.addLibraryPath(root_path ++ "../system-sdk/macos12/usr/lib");
+
+    lib.linkSystemLibraryName("objc");
+
+    lib.linkFramework("AppKit");
+    lib.linkFramework("OpenGL");
+    lib.linkFramework("CoreFoundation");
+    lib.linkFramework("CoreServices");
+    lib.linkFramework("CoreGraphics");
+    lib.linkFramework("Metal");
+    lib.linkFramework("CoreVideo");
+    lib.linkFramework("Cocoa");
+    lib.linkFramework("IOKit");
+    lib.linkFramework("ForceFeedback");
+    lib.linkFramework("Carbon");
+    lib.linkFramework("CoreAudio");
+    lib.linkFramework("AudioToolbox");
+    lib.linkFramework("Foundation");
 }
 
 pub fn build(b: *std.Build) !void {
