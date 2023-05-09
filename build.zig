@@ -59,6 +59,8 @@ pub fn getDefaultOptionsForTarget(target: std.zig.CrossTarget) SdlOptions {
         options.power_implementation = .windows;
         options.timer_implementation = .windows;
         options.locale_implementation = .windows;
+
+        options.haptic_implementation = .windows;
     }
 
     if (target.isDarwin()) {
@@ -268,6 +270,9 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
     //Darwin is *special* and the define name doesnt match.
     if (sdl_options.haptic_implementation == .darwin) {
         lib.defineCMacro("SDL_HAPTIC_IOKIT", "1");
+    } else if (sdl_options.haptic_implementation == .windows) {
+        lib.defineCMacro("SDL_HAPTIC_DINPUT", "1");
+        lib.defineCMacro("SDL_HAPTIC_XINPUT", "1");
     } else {
         //Define the C macro enabling the correct thread implementation
         lib.defineCMacro(try std.mem.concat(b.allocator, u8, &.{ "SDL_HAPTIC_", try lazyToUpper(b.allocator, @tagName(sdl_options.haptic_implementation)) }), "1");
@@ -742,14 +747,14 @@ const windows_src_files = [_][]const u8{
     root_path ++ "src/core/windows/SDL_windows.c",
     root_path ++ "src/core/windows/SDL_xinput.c",
     root_path ++ "src/filesystem/windows/SDL_sysfilesystem.c",
-    root_path ++ "src/hidapi/windows/hid.c",
+    // root_path ++ "src/hidapi/windows/hid.c",
     // This can be enabled when Zig updates to the next mingw-w64 release,
     // which will make the headers gain `windows.gaming.input.h`.
     // Also revert the patch 2c79fd8fd04f1e5045cbe5978943b0aea7593110.
     //"src/joystick/windows/SDL_windows_gaming_input.c",
 
     root_path ++ "src/loadso/windows/SDL_sysloadso.c",
-    root_path ++ "src/main/windows/SDL_windows_main.c",
+    // root_path ++ "src/main/windows/SDL_windows_main.c",
     root_path ++ "src/misc/windows/SDL_sysurl.c",
     root_path ++ "src/sensor/windows/SDL_windowssensor.c",
 
