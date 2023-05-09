@@ -309,8 +309,6 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
             lib.linkSystemLibrary("ole32");
         },
         .macos => {
-            applyMacosLinkerArgs(lib);
-
             lib.addCSourceFiles(&darwin_src_files, c_flags.items);
 
             var obj_flags = try std.mem.concat(b.allocator, []const u8, &.{ &.{"-fobjc-arc"}, c_flags.items });
@@ -329,6 +327,8 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
             lib.installConfigHeader(config_header, .{});
         },
     }
+
+    try applyLinkerArgs(b.allocator, target, lib);
 
     switch (sdl_options.thread_implementation) {
         //stdcpp and ngage have cpp code, so lets add exceptions for those, since find_c_cpp_sources separates the found c/cpp files
@@ -449,27 +449,36 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
     return lib;
 }
 
-pub fn applyMacosLinkerArgs(lib: *std.Build.CompileStep) void {
-    lib.addFrameworkPath(root_path ++ "../system-sdk/macos12/System/Library/Frameworks");
-    lib.addSystemIncludePath(root_path ++ "../system-sdk/macos12/usr/include");
-    lib.addLibraryPath(root_path ++ "../system-sdk/macos12/usr/lib");
+pub fn applyLinkerArgs(allocator: std.mem.Allocator, target: std.zig.CrossTarget, lib: *std.Build.CompileStep) !void {
+    switch (target.getOsTag()) {
+        .linux => {
+            lib.addIncludePath(root_path ++ "../system-sdk/linux/include");
+            lib.addLibraryPath(try std.mem.concat(allocator, u8, &.{ root_path ++ "../system-sdk/linux/lib/", try target.linuxTriple(allocator) }));
+        },
+        .macos => {
+            lib.addFrameworkPath(root_path ++ "../system-sdk/macos12/System/Library/Frameworks");
+            lib.addSystemIncludePath(root_path ++ "../system-sdk/macos12/usr/include");
+            lib.addLibraryPath(root_path ++ "../system-sdk/macos12/usr/lib");
 
-    lib.linkSystemLibraryName("objc");
+            lib.linkSystemLibraryName("objc");
 
-    lib.linkFramework("AppKit");
-    lib.linkFramework("OpenGL");
-    lib.linkFramework("CoreFoundation");
-    lib.linkFramework("CoreServices");
-    lib.linkFramework("CoreGraphics");
-    lib.linkFramework("Metal");
-    lib.linkFramework("CoreVideo");
-    lib.linkFramework("Cocoa");
-    lib.linkFramework("IOKit");
-    lib.linkFramework("ForceFeedback");
-    lib.linkFramework("Carbon");
-    lib.linkFramework("CoreAudio");
-    lib.linkFramework("AudioToolbox");
-    lib.linkFramework("Foundation");
+            lib.linkFramework("AppKit");
+            lib.linkFramework("OpenGL");
+            lib.linkFramework("CoreFoundation");
+            lib.linkFramework("CoreServices");
+            lib.linkFramework("CoreGraphics");
+            lib.linkFramework("Metal");
+            lib.linkFramework("CoreVideo");
+            lib.linkFramework("Cocoa");
+            lib.linkFramework("IOKit");
+            lib.linkFramework("ForceFeedback");
+            lib.linkFramework("Carbon");
+            lib.linkFramework("CoreAudio");
+            lib.linkFramework("AudioToolbox");
+            lib.linkFramework("Foundation");
+        },
+        else => {},
+    }
 }
 
 pub fn build(b: *std.Build) !void {
