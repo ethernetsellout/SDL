@@ -13,6 +13,8 @@ pub const SdlOptions = struct {
     timer_implementation: SdlTimerImplementation = .dummy,
     ///The locale implementation to use
     locale_implementation: SdlLocaleImplementation = .dummy,
+    ///The haptic implementation to use
+    haptic_implementation: SdlHapticImplementation = .dummy,
     ///Whether or not to build SDL as a shared library
     shared: bool = false,
 };
@@ -31,6 +33,8 @@ pub fn getDefaultOptionsForTarget(target: std.zig.CrossTarget) SdlOptions {
 
     if (target.isLinux()) {
         options.joystick_implementations.linux = true;
+        options.joystick_implementations.steam = true;
+        options.haptic_implementation = .linux;
 
         options.power_implementation = .linux;
 
@@ -109,6 +113,15 @@ const SdlHidApiImplementation = enum {
     libusb,
     linux,
     mac,
+    windows,
+};
+
+//NOTE: these names must match the folder names!
+const SdlHapticImplementation = enum {
+    android,
+    darwin,
+    dummy,
+    linux,
     windows,
 };
 
@@ -251,6 +264,14 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
 
     //Define the C macro enabling the correct thread implementation
     lib.defineCMacro(try std.mem.concat(b.allocator, u8, &.{ "SDL_THREAD_", try lazyToUpper(b.allocator, @tagName(sdl_options.thread_implementation)) }), "1");
+
+    //Darwin is *special* and the define name doesnt match.
+    if (sdl_options.haptic_implementation == .darwin) {
+        lib.defineCMacro("SDL_HAPTIC_IOKIT", "1");
+    } else {
+        //Define the C macro enabling the correct thread implementation
+        lib.defineCMacro(try std.mem.concat(b.allocator, u8, &.{ "SDL_HAPTIC_", try lazyToUpper(b.allocator, @tagName(sdl_options.haptic_implementation)) }), "1");
+    }
 
     const viStructInfo: std.builtin.Type.Struct = @typeInfo(EnabledSdlVideoImplementations).Struct;
     //Iterate over all fields on the video implementations struct
@@ -445,7 +466,35 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
         if (sdl_options.joystick_implementations.wgi) {
             lib.addCSourceFile(root_path ++ "src/joystick/windows/windows_gaming_input.c", c_flags.items);
         }
+
+        if (sdl_options.joystick_implementations.steam) {
+            lib.addCSourceFile(root_path ++ "src/joystick/steam/SDL_steamcontroller.c", c_flags.items);
+        }
     } //joystick implementations
+
+    { //haptic implementations
+        if (sdl_options.haptic_implementation == .android) {
+            lib.addCSourceFile(root_path ++ "src/haptic/android/SDL_syshaptic.c", c_flags.items);
+        }
+
+        if (sdl_options.haptic_implementation == .darwin) {
+            lib.addCSourceFile(root_path ++ "src/haptic/darwin/SDL_syshaptic.c", c_flags.items);
+        }
+
+        if (sdl_options.haptic_implementation == .dummy) {
+            lib.addCSourceFile(root_path ++ "src/haptic/dummy/SDL_syshaptic.c", c_flags.items);
+        }
+
+        if (sdl_options.haptic_implementation == .linux) {
+            lib.addCSourceFile(root_path ++ "src/haptic/linux/SDL_syshaptic.c", c_flags.items);
+        }
+
+        if (sdl_options.haptic_implementation == .windows) {
+            lib.addCSourceFile(root_path ++ "src/haptic/windows/SDL_dinputhaptic.c", c_flags.items);
+            lib.addCSourceFile(root_path ++ "src/haptic/windows/SDL_windowshaptic.c", c_flags.items);
+            lib.addCSourceFile(root_path ++ "src/haptic/windows/SDL_xinputhaptic.c", c_flags.items);
+        }
+    } //haptic implementations
 
     lib.installHeadersDirectory(root_path ++ "include", "SDL2");
 
@@ -693,9 +742,6 @@ const windows_src_files = [_][]const u8{
     root_path ++ "src/core/windows/SDL_windows.c",
     root_path ++ "src/core/windows/SDL_xinput.c",
     root_path ++ "src/filesystem/windows/SDL_sysfilesystem.c",
-    root_path ++ "src/haptic/windows/SDL_dinputhaptic.c",
-    root_path ++ "src/haptic/windows/SDL_windowshaptic.c",
-    root_path ++ "src/haptic/windows/SDL_xinputhaptic.c",
     root_path ++ "src/hidapi/windows/hid.c",
     // This can be enabled when Zig updates to the next mingw-w64 release,
     // which will make the headers gain `windows.gaming.input.h`.
@@ -746,15 +792,12 @@ const linux_src_files = [_][]const u8{
 
     root_path ++ "src/misc/unix/SDL_sysurl.c",
 
-    root_path ++ "src/haptic/linux/SDL_syshaptic.c",
-
     root_path ++ "src/audio/alsa/SDL_alsa_audio.c",
     root_path ++ "src/audio/jack/SDL_jackaudio.c",
     root_path ++ "src/audio/pulseaudio/SDL_pulseaudio.c",
 };
 
 const darwin_src_files = [_][]const u8{
-    root_path ++ "src/haptic/darwin/SDL_syshaptic.c",
     root_path ++ "src/joystick/darwin/SDL_iokitjoystick.c",
     // root_path ++ "src/power/macosx/SDL_syspower.c",
     root_path ++ "src/loadso/dlopen/SDL_sysloadso.c",
@@ -859,9 +902,6 @@ const unknown_src_files = [_][]const u8{
     root_path ++ "src/filesystem/riscos/SDL_sysfilesystem.c",
     root_path ++ "src/filesystem/unix/SDL_sysfilesystem.c",
     root_path ++ "src/filesystem/vita/SDL_sysfilesystem.c",
-
-    root_path ++ "src/haptic/android/SDL_syshaptic.c",
-    root_path ++ "src/haptic/dummy/SDL_syshaptic.c",
 
     root_path ++ "src/hidapi/libusb/hid.c",
     root_path ++ "src/hidapi/mac/hid.c",
