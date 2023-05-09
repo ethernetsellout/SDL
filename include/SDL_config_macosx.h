@@ -153,15 +153,15 @@
 #define HAVE_GCC_ATOMICS 1
 
 /* Enable various audio drivers */
-#define SDL_AUDIO_DRIVER_COREAUDIO  1
-#define SDL_AUDIO_DRIVER_DISK   1
-#define SDL_AUDIO_DRIVER_DUMMY  1
+// #define SDL_AUDIO_DRIVER_COREAUDIO  1
+// #define SDL_AUDIO_DRIVER_DISK   1
+// #define SDL_AUDIO_DRIVER_DUMMY  1
 
 /* Enable various input drivers */
-#define SDL_JOYSTICK_HIDAPI 1
-#define SDL_JOYSTICK_IOKIT  1
-#define SDL_JOYSTICK_VIRTUAL    1
-#define SDL_HAPTIC_IOKIT    1
+// #define SDL_JOYSTICK_HIDAPI 1
+// #define SDL_JOYSTICK_IOKIT  1
+// #define SDL_JOYSTICK_VIRTUAL    1
+// #define SDL_HAPTIC_IOKIT    1
 
 /* The MFI controller support requires ARC Objective C runtime */
 #if MAC_OS_X_VERSION_MIN_REQUIRED >= 1080 && !defined(__i386__)
@@ -176,26 +176,26 @@
 #define SDL_LOADSO_DLOPEN   1
 
 /* Enable various threading systems */
-#define SDL_THREAD_PTHREAD  1
+// #define SDL_THREAD_PTHREAD  1
 #define SDL_THREAD_PTHREAD_RECURSIVE_MUTEX  1
 
 /* Enable various timer systems */
-#define SDL_TIMER_UNIX  1
+// #define SDL_TIMER_UNIX  1
 
 /* Enable various video drivers */
-#define SDL_VIDEO_DRIVER_COCOA  1
-#define SDL_VIDEO_DRIVER_DUMMY  1
-#undef SDL_VIDEO_DRIVER_X11
-#define SDL_VIDEO_DRIVER_X11_DYNAMIC "/opt/X11/lib/libX11.6.dylib"
-#define SDL_VIDEO_DRIVER_X11_DYNAMIC_XEXT "/opt/X11/lib/libXext.6.dylib"
-#define SDL_VIDEO_DRIVER_X11_DYNAMIC_XINPUT2 "/opt/X11/lib/libXi.6.dylib"
-#define SDL_VIDEO_DRIVER_X11_DYNAMIC_XRANDR "/opt/X11/lib/libXrandr.2.dylib"
-#define SDL_VIDEO_DRIVER_X11_DYNAMIC_XSS "/opt/X11/lib/libXss.1.dylib"
-#define SDL_VIDEO_DRIVER_X11_XDBE 1
-#define SDL_VIDEO_DRIVER_X11_XRANDR 1
-#define SDL_VIDEO_DRIVER_X11_XSCRNSAVER 1
-#define SDL_VIDEO_DRIVER_X11_XSHAPE 1
-#define SDL_VIDEO_DRIVER_X11_HAS_XKBKEYCODETOKEYSYM 1
+// #define SDL_VIDEO_DRIVER_COCOA  1
+// #define SDL_VIDEO_DRIVER_DUMMY  1
+// #undef SDL_VIDEO_DRIVER_X11
+// #define SDL_VIDEO_DRIVER_X11_DYNAMIC "/opt/X11/lib/libX11.6.dylib"
+// #define SDL_VIDEO_DRIVER_X11_DYNAMIC_XEXT "/opt/X11/lib/libXext.6.dylib"
+// #define SDL_VIDEO_DRIVER_X11_DYNAMIC_XINPUT2 "/opt/X11/lib/libXi.6.dylib"
+// #define SDL_VIDEO_DRIVER_X11_DYNAMIC_XRANDR "/opt/X11/lib/libXrandr.2.dylib"
+// #define SDL_VIDEO_DRIVER_X11_DYNAMIC_XSS "/opt/X11/lib/libXss.1.dylib"
+// #define SDL_VIDEO_DRIVER_X11_XDBE 1
+// #define SDL_VIDEO_DRIVER_X11_XRANDR 1
+// #define SDL_VIDEO_DRIVER_X11_XSCRNSAVER 1
+// #define SDL_VIDEO_DRIVER_X11_XSHAPE 1
+// #define SDL_VIDEO_DRIVER_X11_HAS_XKBKEYCODETOKEYSYM 1
 
 #ifdef MAC_OS_X_VERSION_10_8
 /*

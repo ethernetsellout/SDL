@@ -69,7 +69,9 @@ pub fn getDefaultOptionsForTarget(target: std.zig.CrossTarget) SdlOptions {
         options.timer_implementation = .unix;
         options.locale_implementation = .macosx;
 
-        options.joystick_implementations.apple = true;
+        options.haptic_implementation = .darwin;
+        options.joystick_implementations.darwin = true;
+
         options.video_implementations.cocoa = true;
     }
 
@@ -451,6 +453,10 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
             lib.addCSourceFile(root_path ++ "src/joystick/linux/SDL_sysjoystick.c", c_flags.items);
         }
 
+        if (sdl_options.joystick_implementations.darwin) {
+            lib.addCSourceFile(root_path ++ "src/joystick/darwin/SDL_iokitjoystick.c", c_flags.items);
+        }
+
         //dinput, xinput, and rawinput are all windows exclusives, so if any of them are on, we need the windows joystick
         if (sdl_options.joystick_implementations.dinput or sdl_options.joystick_implementations.xinput or sdl_options.joystick_implementations.rawinput) {
             lib.addCSourceFile(root_path ++ "src/joystick/windows/SDL_windowsjoystick.c", c_flags.items);
@@ -803,7 +809,7 @@ const linux_src_files = [_][]const u8{
 };
 
 const darwin_src_files = [_][]const u8{
-    root_path ++ "src/joystick/darwin/SDL_iokitjoystick.c",
+    // root_path ++ "src/joystick/darwin/SDL_iokitjoystick.c",
     // root_path ++ "src/power/macosx/SDL_syspower.c",
     root_path ++ "src/loadso/dlopen/SDL_sysloadso.c",
     root_path ++ "src/audio/disk/SDL_diskaudio.c",
