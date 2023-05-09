@@ -249,6 +249,9 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
     //Define the C macro enabling the correct timer implementation
     lib.defineCMacro(try std.mem.concat(b.allocator, u8, &.{ "SDL_TIMER_", try lazyToUpper(b.allocator, @tagName(sdl_options.timer_implementation)) }), "1");
 
+    //Define the C macro enabling the correct thread implementation
+    lib.defineCMacro(try std.mem.concat(b.allocator, u8, &.{ "SDL_THREAD_", try lazyToUpper(b.allocator, @tagName(sdl_options.thread_implementation)) }), "1");
+
     const viStructInfo: std.builtin.Type.Struct = @typeInfo(EnabledSdlVideoImplementations).Struct;
     //Iterate over all fields on the video implementations struct
     inline for (viStructInfo.fields) |field| {
@@ -317,15 +320,7 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
         .linux => {
             lib.addCSourceFiles(&linux_src_files, c_flags.items);
         },
-        else => {
-            const config_header = b.addConfigHeader(.{
-                .style = .{ .cmake = .{ .path = root_path ++ "include/SDL_config.h.cmake" } },
-                .include_path = root_path ++ "SDL2/SDL_config.h",
-            }, .{});
-
-            lib.addConfigHeader(config_header);
-            lib.installConfigHeader(config_header, .{});
-        },
+        else => {},
     }
 
     try applyLinkerArgs(b.allocator, target, lib);
