@@ -320,7 +320,15 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
         .linux => {
             lib.addCSourceFiles(&linux_src_files, c_flags.items);
         },
-        else => {},
+        else => {
+            // const config_header = b.addConfigHeader(.{
+            //     .style = .{ .cmake = .{ .path = root_path ++ "include/SDL_config.h.cmake" } },
+            //     .include_path = root_path ++ "SDL2/SDL_config.h",
+            // }, .{});
+
+            // lib.addConfigHeader(config_header);
+            // lib.installConfigHeader(config_header, .{});
+        },
     }
 
     try applyLinkerArgs(b.allocator, target, lib);
