@@ -235,7 +235,7 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
         .optimize = optimize,
     };
 
-    const lib = if (sdl_options.shared) b.addSharedLibrary(options) else b.addStaticLibrary(options);
+    const lib: *std.Build.CompileStep = if (sdl_options.shared) b.addSharedLibrary(options) else b.addStaticLibrary(options);
     const t = lib.target_info.target;
 
     var c_flags = std.ArrayList([]const u8).init(b.allocator);
