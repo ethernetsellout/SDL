@@ -149,10 +149,10 @@
 #define SDL_AUDIO_DRIVER_DUMMY  1
 
 /* Enable various input drivers */
-#define SDL_JOYSTICK_ANDROID    1
-#define SDL_JOYSTICK_HIDAPI     1
-#define SDL_JOYSTICK_VIRTUAL    1
-#define SDL_HAPTIC_ANDROID  1
+// #define SDL_JOYSTICK_ANDROID    1
+// #define SDL_JOYSTICK_HIDAPI     1
+// #define SDL_JOYSTICK_VIRTUAL    1
+// #define SDL_HAPTIC_ANDROID  1
 
 /* Enable sensor driver */
 #define SDL_SENSOR_ANDROID  1
@@ -161,14 +161,14 @@
 #define SDL_LOADSO_DLOPEN   1
 
 /* Enable various threading systems */
-#define SDL_THREAD_PTHREAD  1
+// #define SDL_THREAD_PTHREAD  1
 #define SDL_THREAD_PTHREAD_RECURSIVE_MUTEX  1
 
 /* Enable various timer systems */
-#define SDL_TIMER_UNIX  1
+// #define SDL_TIMER_UNIX  1
 
 /* Enable various video drivers */
-#define SDL_VIDEO_DRIVER_ANDROID 1
+// #define SDL_VIDEO_DRIVER_ANDROID 1
 
 /* Enable OpenGL ES */
 #define SDL_VIDEO_OPENGL_ES 1
@@ -186,7 +186,7 @@
 #endif
 
 /* Enable system power support */
-#define SDL_POWER_ANDROID 1
+// #define SDL_POWER_ANDROID 1
 
 /* Enable the filesystem driver */
 #define SDL_FILESYSTEM_ANDROID   1

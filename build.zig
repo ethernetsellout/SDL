@@ -23,6 +23,24 @@ pub const SdlOptions = struct {
 pub fn getDefaultOptionsForTarget(target: std.zig.CrossTarget) SdlOptions {
     var options = SdlOptions{};
 
+    if (target.getAbi() == .android) {
+        options.video_implementations.android = true;
+        options.haptic_implementation = SdlHapticImplementation.android;
+        options.joystick_implementations.android = true;
+        options.joystick_implementations.hidapi = true;
+        options.joystick_implementations.virtual = true;
+        options.joystick_implementations.dummy = true;
+        options.locale_implementation = SdlLocaleImplementation.android;
+        options.power_implementation = SdlPowerImplementation.android;
+        options.thread_implementation = SdlThreadImplementation.pthread;
+        options.timer_implementation = SdlTimerImplementation.unix;
+
+        options.shared = true;
+
+        //Return out early to prevent later checks from returning true
+        return options;
+    }
+
     if (target.isLinux() or target.isFreeBSD() or target.isOpenBSD() or target.isNetBSD() or target.isDragonFlyBSD()) {
         //Linux, UNIX and BSD-likes all will have X11 and pthreads
         options.video_implementations.x11 = true;
@@ -236,7 +254,6 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
     };
 
     const lib: *std.Build.CompileStep = if (sdl_options.shared) b.addSharedLibrary(options) else b.addStaticLibrary(options);
-    const t = lib.target_info.target;
 
     var c_flags = std.ArrayList([]const u8).init(b.allocator);
 
@@ -245,12 +262,20 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
     //workaround some parsing issues in the macos system-sdk in use
     lib.defineCMacro("__kernel_ptr_semantics", "");
 
-    switch (t.os.tag) {
+    switch (target.getOsTag()) {
         .linux => {
             try c_flags.appendSlice(&.{
                 "-DSDL_INPUT_LINUXEV",
                 "-DHAVE_LINUX_INPUT_H", //TODO: properly check for this like the CMake script does
             });
+        },
+        else => {},
+    }
+
+    switch (target.getAbi()) {
+        .android => {
+            //Define android
+            lib.defineCMacro("__ANDROID__", "1");
         },
         else => {},
     }
@@ -346,7 +371,11 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
             lib.addCSourceFiles(&objective_c_src_files, obj_flags);
         },
         .linux => {
-            lib.addCSourceFiles(&linux_src_files, c_flags.items);
+            if (target.getAbi() == .android) {
+                lib.addCSourceFiles(&android_src_files, c_flags.items);
+            } else {
+                lib.addCSourceFiles(&linux_src_files, c_flags.items);
+            }
         },
         else => {
             // const config_header = b.addConfigHeader(.{
@@ -806,6 +835,30 @@ const linux_src_files = [_][]const u8{
     root_path ++ "src/audio/alsa/SDL_alsa_audio.c",
     root_path ++ "src/audio/jack/SDL_jackaudio.c",
     root_path ++ "src/audio/pulseaudio/SDL_pulseaudio.c",
+};
+
+const android_src_files = [_][]const u8{
+    root_path ++ "src/core/linux/SDL_dbus.c",
+    root_path ++ "src/core/linux/SDL_evdev.c",
+    root_path ++ "src/core/linux/SDL_evdev_capabilities.c",
+    root_path ++ "src/core/linux/SDL_evdev_kbd.c",
+    root_path ++ "src/core/linux/SDL_ibus.c",
+    root_path ++ "src/core/linux/SDL_ime.c",
+    root_path ++ "src/core/linux/SDL_sandbox.c",
+    root_path ++ "src/core/linux/SDL_threadprio.c",
+    // root_path ++ "src/core/linux/SDL_udev.c",
+    // "src/core/linux/SDL_fcitx.c",
+    root_path ++ "src/core/unix/SDL_poll.c",
+
+    // root_path ++ "src/hidapi/linux/hid.c",
+
+    root_path ++ "src/sensor/dummy/SDL_dummysensor.c",
+
+    root_path ++ "src/misc/unix/SDL_sysurl.c",
+
+    // root_path ++ "src/audio/alsa/SDL_alsa_audio.c",
+    // root_path ++ "src/audio/jack/SDL_jackaudio.c",
+    // root_path ++ "src/audio/pulseaudio/SDL_pulseaudio.c",
 };
 
 const darwin_src_files = [_][]const u8{
