@@ -260,7 +260,7 @@ typedef unsigned int uintptr_t;
 #ifndef __WINRT__
 #define SDL_JOYSTICK_RAWINPUT   1
 #endif
-#define SDL_JOYSTICK_VIRTUAL    1
+// #define SDL_JOYSTICK_VIRTUAL    1
 #ifdef HAVE_WINDOWS_GAMING_INPUT_H
 #define SDL_JOYSTICK_WGI    1
 #endif
@@ -304,19 +304,19 @@ typedef unsigned int uintptr_t;
 #define SDL_VIDEO_OPENGL    1
 #endif
 #ifndef SDL_VIDEO_OPENGL_WGL
-#define SDL_VIDEO_OPENGL_WGL    1
+// #define SDL_VIDEO_OPENGL_WGL    1
 #endif
 #ifndef SDL_VIDEO_RENDER_OGL
-#define SDL_VIDEO_RENDER_OGL    1
+// #define SDL_VIDEO_RENDER_OGL    1
 #endif
 #ifndef SDL_VIDEO_RENDER_OGL_ES2
-#define SDL_VIDEO_RENDER_OGL_ES2    1
+// #define SDL_VIDEO_RENDER_OGL_ES2    1
 #endif
 #ifndef SDL_VIDEO_OPENGL_ES2
-#define SDL_VIDEO_OPENGL_ES2    1
+// #define SDL_VIDEO_OPENGL_ES2    1
 #endif
 #ifndef SDL_VIDEO_OPENGL_EGL
-#define SDL_VIDEO_OPENGL_EGL    1
+// #define SDL_VIDEO_OPENGL_EGL    1
 #endif
 
 /* Enable Vulkan support */

@@ -149,8 +149,8 @@
 /* Enable joystick support */
 /* Only enable HIDAPI support if you want to support Steam Controllers on iOS and tvOS */
 /*#define SDL_JOYSTICK_HIDAPI 1*/
-#define SDL_JOYSTICK_MFI 1
-#define SDL_JOYSTICK_VIRTUAL    1
+// #define SDL_JOYSTICK_MFI 1
+// #define SDL_JOYSTICK_VIRTUAL    1
 
 #ifdef __TVOS__
 #define SDL_SENSOR_DUMMY    1

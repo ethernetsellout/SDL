@@ -207,13 +207,13 @@
 #define SDL_VIDEO_DRIVER_X11_SUPPORTS_GENERIC_EVENTS 1
 #endif
 
-#ifndef SDL_VIDEO_RENDER_OGL
-#define SDL_VIDEO_RENDER_OGL    1
-#endif
+// #ifndef SDL_VIDEO_RENDER_OGL
+// #define SDL_VIDEO_RENDER_OGL    1
+// #endif
 
-#ifndef SDL_VIDEO_RENDER_OGL_ES2
-#define SDL_VIDEO_RENDER_OGL_ES2 1
-#endif
+// #ifndef SDL_VIDEO_RENDER_OGL_ES2
+// #define SDL_VIDEO_RENDER_OGL_ES2 1
+// #endif
 
 /* Metal only supported on 64-bit architectures with 10.11+ */
 #if TARGET_RT_64_BIT && (MAC_OS_X_VERSION_MAX_ALLOWED >= 101100)

@@ -1032,7 +1032,7 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
 
         if (sdl_options.render_implementations.metal) {
             lib.addCSourceFile(
-                "src/render/metal/SDL_render_metal.m",
+                root_path ++ "src/render/metal/SDL_render_metal.m",
                 try std.mem.concat(b.allocator, []const u8, &.{
                     &.{"-fobjc-arc"},
                     c_flags.items,
