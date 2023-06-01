@@ -246,13 +246,13 @@ typedef unsigned int uintptr_t;
 #endif
 
 /* Enable various audio drivers */
-#if defined(HAVE_MMDEVICEAPI_H) && defined(HAVE_AUDIOCLIENT_H)
-#define SDL_AUDIO_DRIVER_WASAPI 1
-#endif
-#define SDL_AUDIO_DRIVER_DSOUND 1
-#define SDL_AUDIO_DRIVER_WINMM  1
-#define SDL_AUDIO_DRIVER_DISK   1
-#define SDL_AUDIO_DRIVER_DUMMY  1
+// #if defined(HAVE_MMDEVICEAPI_H) && defined(HAVE_AUDIOCLIENT_H)
+// #define SDL_AUDIO_DRIVER_WASAPI 1
+// #endif
+// #define SDL_AUDIO_DRIVER_DSOUND 1
+// #define SDL_AUDIO_DRIVER_WINMM  1
+// #define SDL_AUDIO_DRIVER_DISK   1
+// #define SDL_AUDIO_DRIVER_DUMMY  1
 
 /* Enable various input drivers */
 #define SDL_JOYSTICK_DINPUT 1
@@ -276,7 +276,7 @@ typedef unsigned int uintptr_t;
 #endif
 
 /* Enable various shared object loading systems */
-#define SDL_LOADSO_WINDOWS  1
+// #define SDL_LOADSO_WINDOWS  1
 
 /* Enable various threading systems */
 #define SDL_THREAD_GENERIC_COND_SUFFIX 1

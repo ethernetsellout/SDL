@@ -179,7 +179,7 @@
 #define SDL_SENSOR_DUMMY  1
 
 /* Enable various shared object loading systems */
-#define SDL_LOADSO_WINDOWS  1
+// #define SDL_LOADSO_WINDOWS  1
 
 /* Enable various threading systems */
 #if (NTDDI_VERSION >= NTDDI_WINBLUE)

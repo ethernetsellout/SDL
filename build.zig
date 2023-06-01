@@ -3,6 +3,8 @@ const std = @import("std");
 pub const SdlOptions = struct {
     ///The enabled video implementations
     video_implementations: EnabledSdlVideoImplementations = .{},
+    ///The enabled audio implementations
+    audio_implementations: EnabledSdlAudioImplementations = .{},
     ///The enabled joystick implementations
     joystick_implementations: EnabledSdlJoystickImplementations = .{},
     ///The thread implementation to use
@@ -15,6 +17,7 @@ pub const SdlOptions = struct {
     locale_implementation: SdlLocaleImplementation = .dummy,
     ///The haptic implementation to use
     haptic_implementation: SdlHapticImplementation = .dummy,
+    loadso_implementation: SdlLoadSoImplementation = .dummy,
     ///Whether or not to build SDL as a shared library
     shared: bool = false,
 };
@@ -34,6 +37,11 @@ pub fn getDefaultOptionsForTarget(target: std.zig.CrossTarget) SdlOptions {
         options.power_implementation = SdlPowerImplementation.android;
         options.thread_implementation = SdlThreadImplementation.pthread;
         options.timer_implementation = SdlTimerImplementation.unix;
+        options.audio_implementations.android = true;
+        options.audio_implementations.openslES = true;
+        options.audio_implementations.aaudio = true;
+        options.audio_implementations.dummy = true;
+        options.loadso_implementation = .dlopen;
 
         options.shared = true;
 
@@ -47,6 +55,7 @@ pub fn getDefaultOptionsForTarget(target: std.zig.CrossTarget) SdlOptions {
         options.thread_implementation = .pthread;
         options.timer_implementation = .unix;
         options.locale_implementation = .unix;
+        options.loadso_implementation = .dlopen;
     }
 
     if (target.isLinux()) {
@@ -55,6 +64,11 @@ pub fn getDefaultOptionsForTarget(target: std.zig.CrossTarget) SdlOptions {
         options.haptic_implementation = .linux;
 
         options.power_implementation = .linux;
+
+        options.audio_implementations.alsa = true;
+        options.audio_implementations.jack = true;
+        options.audio_implementations.pipewire = true;
+        options.audio_implementations.pulseaudio = true;
 
         // Wayland is by-default on some modern distros, so lets compile it in by default too
         // temporarily commented out until linker errors are fixed
@@ -73,12 +87,18 @@ pub fn getDefaultOptionsForTarget(target: std.zig.CrossTarget) SdlOptions {
         options.joystick_implementations.xinput = true;
         options.joystick_implementations.rawinput = true;
 
+        options.audio_implementations.directsound = true;
+        options.audio_implementations.winmm = true;
+        options.audio_implementations.disk = true;
+
         options.thread_implementation = .windows;
         options.power_implementation = .windows;
         options.timer_implementation = .windows;
         options.locale_implementation = .windows;
 
         options.haptic_implementation = .windows;
+
+        options.loadso_implementation = .windows;
     }
 
     if (target.isDarwin()) {
@@ -90,11 +110,17 @@ pub fn getDefaultOptionsForTarget(target: std.zig.CrossTarget) SdlOptions {
         options.haptic_implementation = .darwin;
         options.joystick_implementations.darwin = true;
 
+        options.audio_implementations.coreaudio = true;
+        options.audio_implementations.disk = true;
+
         options.video_implementations.cocoa = true;
+
+        options.loadso_implementation = .dlopen;
     }
 
-    //Lets enable the dummy joystick implementation by default on all platforms
+    //Lets enable the dummy implementations by default on all platforms
     options.joystick_implementations.dummy = true;
+    options.audio_implementations.dummy = true;
 
     return options;
 }
@@ -144,6 +170,14 @@ const SdlHapticImplementation = enum {
     darwin,
     dummy,
     linux,
+    windows,
+};
+
+//NOTE: these names must match the folder names!
+const SdlLoadSoImplementation = enum {
+    dlopen,
+    dummy,
+    os2,
     windows,
 };
 
@@ -230,6 +264,41 @@ const EnabledSdlVideoImplementations = struct {
     x11: bool = false,
 };
 
+//NOTE: these names need to stay the same as the folders in src/audio/
+const EnabledSdlAudioImplementations = struct {
+    aaudio: bool = false,
+    alsa: bool = false,
+    android: bool = false,
+    arts: bool = false,
+    coreaudio: bool = false,
+    directsound: bool = false,
+    disk: bool = false,
+    dsp: bool = false,
+    dummy: bool = false,
+    emscripten: bool = false,
+    esd: bool = false,
+    fusionsound: bool = false,
+    haiku: bool = false,
+    jack: bool = false,
+    n3ds: bool = false,
+    nacl: bool = false,
+    nas: bool = false,
+    netbsd: bool = false,
+    openslES: bool = false,
+    os2: bool = false,
+    paudio: bool = false,
+    pipewire: bool = false,
+    ps2: bool = false,
+    psp: bool = false,
+    pulseaudio: bool = false,
+    qsa: bool = false,
+    sndio: bool = false,
+    sun: bool = false,
+    vita: bool = false,
+    wasapi: bool = false,
+    winmm: bool = false,
+};
+
 //lazy toUpper implementation, only supports ASCII strings
 pub fn lazyToUpper(allocator: std.mem.Allocator, str: []const u8) ![]const u8 {
     var upper = try allocator.alloc(u8, str.len);
@@ -257,7 +326,7 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
 
     var c_flags = std.ArrayList([]const u8).init(b.allocator);
 
-    try c_flags.append("-std=c99");
+    // try c_flags.append("-std=c99");
 
     //workaround some parsing issues in the macos system-sdk in use
     lib.defineCMacro("__kernel_ptr_semantics", "");
@@ -276,6 +345,11 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
         .android => {
             //Define android
             lib.defineCMacro("__ANDROID__", "1");
+
+            //Needed in general by SDL
+            lib.linkSystemLibrary("android");
+            lib.linkSystemLibrary("log");
+            lib.linkSystemLibrary("dl");
         },
         else => {},
     }
@@ -286,7 +360,12 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
 
     lib.linkLibC();
     //TODO: we need to link LibCpp in some cases, like the libcpp thread implementation
-    // lib.linkLibCpp();
+    //    lib.linkLibCpp();
+
+    //assume libcpp on android for now
+    if (target.getAbi() == .android) {
+        lib.linkLibCpp();
+    }
 
     //Define the C macro enabling the correct timer implementation
     lib.defineCMacro(try std.mem.concat(b.allocator, u8, &.{ "SDL_TIMER_", try lazyToUpper(b.allocator, @tagName(sdl_options.timer_implementation)) }), "1");
@@ -342,6 +421,32 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
                 //Make the macro name
                 var name = try std.mem.concat(b.allocator, u8, &.{
                     "SDL_JOYSTICK_",
+                    try lazyToUpper(b.allocator, field.name),
+                });
+                //Set the macro to 1
+                lib.defineCMacro(name, "1");
+                // std.debug.print("enabling joystick driver {s} from {s} upper {s}\n", .{ name, field.name, try lazyToUpper(b.allocator, field.name) });
+            }
+        }
+    }
+
+    const aiStructInfo: std.builtin.Type.Struct = @typeInfo(EnabledSdlAudioImplementations).Struct;
+    //Iterate over all fields on the video implementations struct
+    inline for (aiStructInfo.fields) |field| {
+        var enabled: bool = @field(sdl_options.audio_implementations, field.name);
+        //If its enabled in the options
+        if (enabled) {
+            //they arent consistent with their naming always :/
+            if (std.mem.eql(u8, field.name, "directsound")) { //ok
+                lib.defineCMacro("SDL_AUDIO_DRIVER_DSOUND", "1");
+            } else if (std.mem.eql(u8, field.name, "sun")) { //bruh
+                lib.defineCMacro("SDL_AUDIO_DRIVER_SUNAUDIO", "1");
+            } else if (std.mem.eql(u8, field.name, "dsp")) { //?????
+                lib.defineCMacro("SDL_AUDIO_DRIVER_OSS", "1");
+            } else {
+                //Make the macro name
+                var name = try std.mem.concat(b.allocator, u8, &.{
+                    "SDL_AUDIO_DRIVER_",
                     try lazyToUpper(b.allocator, field.name),
                 });
                 //Set the macro to 1
@@ -429,6 +534,15 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
         },
     }
 
+    switch (sdl_options.loadso_implementation) {
+        else => |value| {
+            lib.defineCMacro(b.fmt("SDL_LOADSO_{s}", .{try lazyToUpper(b.allocator, @tagName(value))}), "1");
+
+            const path = try std.mem.concat(b.allocator, u8, &.{ root_path, "src/loadso/", @tagName(value), "/SDL_sysloadso.c" });
+            lib.addCSourceFile(path, c_flags.items);
+        },
+    }
+
     switch (sdl_options.locale_implementation) {
         //haiku is a .cc file (cpp?)
         .haiku => lib.addCSourceFile(root_path ++ "src/locale/haiku/SDL_syslocale.cc", c_flags.items),
@@ -470,6 +584,12 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
             lib.addCSourceFiles(src_files.c, c_flags.items);
         }
 
+        if (sdl_options.video_implementations.android) {
+            var src_files = try find_c_cpp_sources(b.allocator, root_path ++ "src/video/android/");
+
+            lib.addCSourceFiles(src_files.c, c_flags.items);
+        }
+
         //TODO: the rest of the video implementations
     } //video implementations
 
@@ -482,8 +602,72 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
             lib.addCSourceFile(root_path ++ "src/joystick/linux/SDL_sysjoystick.c", c_flags.items);
         }
 
+        if (sdl_options.joystick_implementations.android) {
+            lib.addCSourceFile(root_path ++ "src/joystick/android/SDL_sysjoystick.c", c_flags.items);
+        }
+
         if (sdl_options.joystick_implementations.darwin) {
             lib.addCSourceFile(root_path ++ "src/joystick/darwin/SDL_iokitjoystick.c", c_flags.items);
+        }
+
+        if (sdl_options.joystick_implementations.bsd) {
+            lib.addCSourceFile(root_path ++ "src/joystick/bsd/SDL_bsdjoystick.c", c_flags.items);
+        }
+
+        if (sdl_options.joystick_implementations.emscripten) {
+            lib.addCSourceFile(root_path ++ "src/joystick/emscripten/SDL_sysjoystick.c", c_flags.items);
+        }
+
+        if (sdl_options.joystick_implementations.emscripten) {
+            lib.addCSourceFile(root_path ++ "src/joystick/emscripten/SDL_sysjoystick.c", c_flags.items);
+        }
+
+        if (sdl_options.joystick_implementations.haiku) {
+            lib.addCSourceFile(root_path ++ "src/joystick/haiku/SDL_haikujoystick.cc", c_flags.items);
+        }
+
+        if (sdl_options.joystick_implementations.n3ds) {
+            lib.addCSourceFile(root_path ++ "src/joystick/n3ds/SDL_sysjoystick.c", c_flags.items);
+        }
+
+        if (sdl_options.joystick_implementations.os2) {
+            lib.addCSourceFile(root_path ++ "src/joystick/os2/SDL_os2joystick.c", c_flags.items);
+        }
+
+        if (sdl_options.joystick_implementations.ps2) {
+            lib.addCSourceFile(root_path ++ "src/joystick/ps2/SDL_sysjoystick.c", c_flags.items);
+        }
+
+        if (sdl_options.joystick_implementations.psp) {
+            lib.addCSourceFile(root_path ++ "src/joystick/psp/SDL_sysjoystick.c", c_flags.items);
+        }
+
+        if (sdl_options.joystick_implementations.virtual) {
+            lib.addCSourceFile(root_path ++ "src/joystick/virtual/SDL_virtualjoystick.c", c_flags.items);
+        }
+
+        if (sdl_options.joystick_implementations.vita) {
+            lib.addCSourceFile(root_path ++ "src/joystick/vita/SDL_sysjoystick.c", c_flags.items);
+        }
+
+        if (sdl_options.joystick_implementations.iphoneos) {
+            lib.addCSourceFile(
+                root_path ++ "src/joystick/iphoneos/SDL_mfijoystick.m",
+                try std.mem.concat(b.allocator, []const u8, &.{
+                    &.{"-fobjc-arc"},
+                    c_flags.items,
+                }),
+            );
+        }
+
+        if (sdl_options.joystick_implementations.apple) {
+            lib.addCSourceFile(
+                root_path ++ "src/joystick/apple/SDL_mfijoystick.c",
+                try std.mem.concat(b.allocator, []const u8, &.{
+                    &.{"-fobjc-arc"},
+                    c_flags.items,
+                }),
+            );
         }
 
         //dinput, xinput, and rawinput are all windows exclusives, so if any of them are on, we need the windows joystick
@@ -535,6 +719,141 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
             lib.addCSourceFile(root_path ++ "src/haptic/windows/SDL_xinputhaptic.c", c_flags.items);
         }
     } //haptic implementations
+
+    { //audio implementations
+        if (sdl_options.audio_implementations.aaudio) {
+            lib.addCSourceFile(root_path ++ "src/audio/aaudio/SDL_aaudio.c", c_flags.items);
+        }
+
+        if (sdl_options.audio_implementations.alsa) {
+            lib.addCSourceFile(root_path ++ "src/audio/alsa/SDL_alsa_audio.c", c_flags.items);
+        }
+
+        if (sdl_options.audio_implementations.android) {
+            lib.addCSourceFile(root_path ++ "src/audio/android/SDL_androidaudio.c", c_flags.items);
+        }
+
+        if (sdl_options.audio_implementations.arts) {
+            lib.addCSourceFile(root_path ++ "src/audio/arts/SDL_artsaudio.c", c_flags.items);
+        }
+
+        if (sdl_options.audio_implementations.coreaudio) {
+            lib.addCSourceFile(
+                root_path ++ "src/audio/coreaudio/SDL_coreaudio.m",
+                try std.mem.concat(b.allocator, []const u8, &.{
+                    &.{"-fobjc-arc"},
+                    c_flags.items,
+                }),
+            );
+        }
+
+        if (sdl_options.audio_implementations.directsound) {
+            lib.addCSourceFile(root_path ++ "src/audio/directsound/SDL_directsound.c", c_flags.items);
+        }
+
+        if (sdl_options.audio_implementations.disk) {
+            lib.addCSourceFile(root_path ++ "src/audio/disk/SDL_diskaudio.c", c_flags.items);
+        }
+
+        if (sdl_options.audio_implementations.dsp) {
+            lib.addCSourceFile(root_path ++ "src/audio/dsp/SDL_dspaudio.c", c_flags.items);
+        }
+
+        if (sdl_options.audio_implementations.dummy) {
+            lib.addCSourceFile(root_path ++ "src/audio/dummy/SDL_dummyaudio.c", c_flags.items);
+        }
+
+        if (sdl_options.audio_implementations.emscripten) {
+            lib.addCSourceFile(root_path ++ "src/audio/emscripten/SDL_emscriptenaudio.c", c_flags.items);
+        }
+
+        if (sdl_options.audio_implementations.esd) {
+            lib.addCSourceFile(root_path ++ "src/audio/esd/SDL_esdaudio.c", c_flags.items);
+        }
+
+        if (sdl_options.audio_implementations.fusionsound) {
+            lib.addCSourceFile(root_path ++ "src/audio/fusionsound/SDL_fsaudio.c", c_flags.items);
+        }
+
+        if (sdl_options.audio_implementations.haiku) {
+            lib.addCSourceFile(root_path ++ "src/audio/haiku/SDL_haikuaudio.cc", c_flags.items);
+        }
+
+        if (sdl_options.audio_implementations.jack) {
+            lib.addCSourceFile(root_path ++ "src/audio/jack/SDL_jackaudio.c", c_flags.items);
+        }
+
+        if (sdl_options.audio_implementations.n3ds) {
+            lib.addCSourceFile(root_path ++ "src/audio/n3ds/SDL_n3dsaudio.c", c_flags.items);
+        }
+
+        if (sdl_options.audio_implementations.nacl) {
+            lib.addCSourceFile(root_path ++ "src/audio/nacl/SDL_naclaudio.c", c_flags.items);
+        }
+
+        if (sdl_options.audio_implementations.nas) {
+            lib.addCSourceFile(root_path ++ "src/audio/nas/SDL_nasaudio.c", c_flags.items);
+        }
+
+        if (sdl_options.audio_implementations.netbsd) {
+            lib.addCSourceFile(root_path ++ "src/audio/netbsd/SDL_netbsdaudio.c", c_flags.items);
+        }
+
+        if (sdl_options.audio_implementations.openslES) {
+            lib.addCSourceFile(root_path ++ "src/audio/openslES/SDL_openslES.c", c_flags.items);
+            lib.linkSystemLibrary("OpenSLES");
+        }
+
+        if (sdl_options.audio_implementations.os2) {
+            lib.addCSourceFile(root_path ++ "src/audio/os2/SDL_os2audio.c", c_flags.items);
+        }
+
+        if (sdl_options.audio_implementations.paudio) {
+            lib.addCSourceFile(root_path ++ "src/audio/paudio/SDL_paudio.c", c_flags.items);
+        }
+
+        if (sdl_options.audio_implementations.pipewire) {
+            lib.addCSourceFile(root_path ++ "src/audio/pipewire/SDL_pipewire.c", c_flags.items);
+        }
+
+        if (sdl_options.audio_implementations.ps2) {
+            lib.addCSourceFile(root_path ++ "src/audio/ps2/SDL_ps2audio.c", c_flags.items);
+        }
+
+        if (sdl_options.audio_implementations.psp) {
+            lib.addCSourceFile(root_path ++ "src/audio/psp/SDL_pspaudio.c", c_flags.items);
+        }
+
+        if (sdl_options.audio_implementations.pulseaudio) {
+            lib.addCSourceFile(root_path ++ "src/audio/pulseaudio/SDL_pulseaudio.c", c_flags.items);
+        }
+
+        if (sdl_options.audio_implementations.qsa) {
+            lib.addCSourceFile(root_path ++ "src/audio/qsa/SDL_qsa_audio.c", c_flags.items);
+        }
+
+        if (sdl_options.audio_implementations.sndio) {
+            lib.addCSourceFile(root_path ++ "src/audio/sndio/SDL_sndioaudio.c", c_flags.items);
+        }
+
+        if (sdl_options.audio_implementations.sun) {
+            lib.addCSourceFile(root_path ++ "src/audio/sun/SDL_sunaudio.c", c_flags.items);
+        }
+
+        if (sdl_options.audio_implementations.vita) {
+            lib.addCSourceFile(root_path ++ "src/audio/vita/SDL_vitaaudio.c", c_flags.items);
+        }
+
+        if (sdl_options.audio_implementations.wasapi) {
+            lib.addCSourceFile(root_path ++ "src/audio/wasapi/SDL_wasapi.c", c_flags.items);
+            lib.addCSourceFile(root_path ++ "src/audio/wasapi/SDL_wasapi_win32.c", c_flags.items);
+            lib.addCSourceFile(root_path ++ "src/audio/wasapi/SDL_wasapi_winrt.c", c_flags.items);
+        }
+
+        if (sdl_options.audio_implementations.winmm) {
+            lib.addCSourceFile(root_path ++ "src/audio/winmm/SDL_winmm.c", c_flags.items);
+        }
+    } //audio implementations
 
     lib.installHeadersDirectory(root_path ++ "include", "SDL2");
 
@@ -679,7 +998,7 @@ const generic_src_files = [_][]const u8{
     root_path ++ "src/joystick/SDL_gamecontroller.c",
     root_path ++ "src/joystick/SDL_joystick.c",
     root_path ++ "src/joystick/controller_type.c",
-    root_path ++ "src/joystick/virtual/SDL_virtualjoystick.c",
+    // root_path ++ "src/joystick/virtual/SDL_virtualjoystick.c",
 
     root_path ++ "src/libm/e_atan2.c",
     root_path ++ "src/libm/e_exp.c",
@@ -756,7 +1075,7 @@ const generic_src_files = [_][]const u8{
     root_path ++ "src/render/software/SDL_rotate.c",
     root_path ++ "src/render/software/SDL_triangle.c",
 
-    root_path ++ "src/audio/dummy/SDL_dummyaudio.c",
+    // root_path ++ "src/audio/dummy/SDL_dummyaudio.c",
 
     root_path ++ "src/joystick/hidapi/SDL_hidapi_combined.c",
     root_path ++ "src/joystick/hidapi/SDL_hidapi_gamecube.c",
@@ -800,11 +1119,11 @@ const windows_src_files = [_][]const u8{
     root_path ++ "src/render/direct3d12/SDL_render_d3d12.c",
     root_path ++ "src/render/direct3d12/SDL_shaders_d3d12.c",
 
-    root_path ++ "src/audio/directsound/SDL_directsound.c",
-    root_path ++ "src/audio/wasapi/SDL_wasapi.c",
-    root_path ++ "src/audio/wasapi/SDL_wasapi_win32.c",
-    root_path ++ "src/audio/winmm/SDL_winmm.c",
-    root_path ++ "src/audio/disk/SDL_diskaudio.c",
+    // root_path ++ "src/audio/directsound/SDL_directsound.c",
+    // root_path ++ "src/audio/wasapi/SDL_wasapi.c",
+    // root_path ++ "src/audio/wasapi/SDL_wasapi_win32.c",
+    // root_path ++ "src/audio/winmm/SDL_winmm.c",
+    // root_path ++ "src/audio/disk/SDL_diskaudio.c",
 
     root_path ++ "src/render/opengl/SDL_render_gl.c",
     root_path ++ "src/render/opengl/SDL_shaders_gl.c",
@@ -832,29 +1151,20 @@ const linux_src_files = [_][]const u8{
 
     root_path ++ "src/misc/unix/SDL_sysurl.c",
 
-    root_path ++ "src/audio/alsa/SDL_alsa_audio.c",
-    root_path ++ "src/audio/jack/SDL_jackaudio.c",
-    root_path ++ "src/audio/pulseaudio/SDL_pulseaudio.c",
+    // root_path ++ "src/audio/alsa/SDL_alsa_audio.c",
+    // root_path ++ "src/audio/jack/SDL_jackaudio.c",
+    // root_path ++ "src/audio/pulseaudio/SDL_pulseaudio.c",
 };
 
 const android_src_files = [_][]const u8{
-    root_path ++ "src/core/linux/SDL_dbus.c",
-    root_path ++ "src/core/linux/SDL_evdev.c",
-    root_path ++ "src/core/linux/SDL_evdev_capabilities.c",
-    root_path ++ "src/core/linux/SDL_evdev_kbd.c",
-    root_path ++ "src/core/linux/SDL_ibus.c",
-    root_path ++ "src/core/linux/SDL_ime.c",
-    root_path ++ "src/core/linux/SDL_sandbox.c",
-    root_path ++ "src/core/linux/SDL_threadprio.c",
-    // root_path ++ "src/core/linux/SDL_udev.c",
-    // "src/core/linux/SDL_fcitx.c",
-    root_path ++ "src/core/unix/SDL_poll.c",
+    root_path ++ "src/core/android/SDL_android.c",
+    // root_path ++ "src/core/unix/SDL_poll.c",
 
-    // root_path ++ "src/hidapi/linux/hid.c",
+    root_path ++ "src/hidapi/android/hid.cpp",
 
     root_path ++ "src/sensor/dummy/SDL_dummysensor.c",
 
-    root_path ++ "src/misc/unix/SDL_sysurl.c",
+    root_path ++ "src/misc/android/SDL_sysurl.c",
 
     // root_path ++ "src/audio/alsa/SDL_alsa_audio.c",
     // root_path ++ "src/audio/jack/SDL_jackaudio.c",
@@ -865,7 +1175,7 @@ const darwin_src_files = [_][]const u8{
     // root_path ++ "src/joystick/darwin/SDL_iokitjoystick.c",
     // root_path ++ "src/power/macosx/SDL_syspower.c",
     root_path ++ "src/loadso/dlopen/SDL_sysloadso.c",
-    root_path ++ "src/audio/disk/SDL_diskaudio.c",
+    // root_path ++ "src/audio/disk/SDL_diskaudio.c",
     root_path ++ "src/render/opengl/SDL_render_gl.c",
     root_path ++ "src/render/opengl/SDL_shaders_gl.c",
     root_path ++ "src/render/opengles/SDL_render_gles.c",
@@ -875,7 +1185,7 @@ const darwin_src_files = [_][]const u8{
 };
 
 const objective_c_src_files = [_][]const u8{
-    root_path ++ "src/audio/coreaudio/SDL_coreaudio.m",
+    // root_path ++ "src/audio/coreaudio/SDL_coreaudio.m",
     root_path ++ "src/file/cocoa/SDL_rwopsbundlesupport.m",
     root_path ++ "src/filesystem/cocoa/SDL_sysfilesystem.m",
     //"src/hidapi/testgui/mac_support_cocoa.m",

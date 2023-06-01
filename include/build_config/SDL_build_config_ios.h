@@ -158,7 +158,7 @@
 #endif
 
 /* Enable Unix style SO loading */
-#define SDL_LOADSO_DLOPEN 1
+// #define SDL_LOADSO_DLOPEN 1
 
 /* Enable various threading systems */
 #define SDL_THREAD_PTHREAD  1

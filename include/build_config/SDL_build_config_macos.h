@@ -169,7 +169,7 @@
 #define SDL_SENSOR_DUMMY  1
 
 /* Enable various shared object loading systems */
-#define SDL_LOADSO_DLOPEN   1
+// #define SDL_LOADSO_DLOPEN   1
 
 /* Enable various threading systems */
 #define SDL_THREAD_PTHREAD  1

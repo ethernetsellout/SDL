@@ -177,7 +177,7 @@
 #define SDL_SENSOR_DUMMY 1
 
 /* Enable various shared object loading systems */
-#define SDL_LOADSO_DLOPEN 1
+// #define SDL_LOADSO_DLOPEN 1
 
 /* Enable various threading systems */
 #ifdef __EMSCRIPTEN_PTHREADS__

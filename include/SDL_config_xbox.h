@@ -196,7 +196,7 @@
 #endif
 
 /* Enable various shared object loading systems */
-#define SDL_LOADSO_WINDOWS  1
+// #define SDL_LOADSO_WINDOWS  1
 
 /* Enable various threading systems */
 #define SDL_THREAD_GENERIC_COND_SUFFIX 1

@@ -52,10 +52,10 @@
 /* Enable OpenGL support */
 /* #undef SDL_VIDEO_OPENGL */
 
-#define SDL_THREAD_OS2 1
-#define SDL_LOADSO_OS2 1
-#define SDL_TIMER_OS2 1
-#define SDL_FILESYSTEM_OS2 1
+// #define SDL_THREAD_OS2 1
+// #define SDL_LOADSO_OS2 1
+// #define SDL_TIMER_OS2 1
+// #define SDL_FILESYSTEM_OS2 1
 
 /* use libsamplerate for audio rate conversion. */
 /*#define HAVE_LIBSAMPLERATE_H 1 */
