@@ -231,38 +231,38 @@
 #endif
 
 /* Enable OpenGL support */
-#ifndef SDL_VIDEO_OPENGL
-#define SDL_VIDEO_OPENGL    1
-#endif
-#ifndef SDL_VIDEO_OPENGL_ES2
-#define SDL_VIDEO_OPENGL_ES2    1
-#endif
-#ifndef SDL_VIDEO_OPENGL_EGL
-#define SDL_VIDEO_OPENGL_EGL    1
-#endif
-#ifndef SDL_VIDEO_OPENGL_CGL
-#define SDL_VIDEO_OPENGL_CGL    1
-#endif
-#ifndef SDL_VIDEO_OPENGL_GLX
-#define SDL_VIDEO_OPENGL_GLX    1
-#endif
+// #ifndef SDL_VIDEO_OPENGL
+// #define SDL_VIDEO_OPENGL    1
+// #endif
+// #ifndef SDL_VIDEO_OPENGL_ES2
+// // #define SDL_VIDEO_OPENGL_ES2    1
+// #endif
+// #ifndef SDL_VIDEO_OPENGL_EGL
+// // #define SDL_VIDEO_OPENGL_EGL    1
+// #endif
+// #ifndef SDL_VIDEO_OPENGL_CGL
+// // #define SDL_VIDEO_OPENGL_CGL    1
+// #endif
+// #ifndef SDL_VIDEO_OPENGL_GLX
+// // #define SDL_VIDEO_OPENGL_GLX    1
+// #endif
 
 /* Enable Vulkan and Metal support */
-#ifndef SDL_VIDEO_VULKAN
-#if SDL_PLATFORM_SUPPORTS_METAL
-#define SDL_VIDEO_VULKAN 1
-#else
-#define SDL_VIDEO_VULKAN 0
-#endif
-#endif
+// #ifndef SDL_VIDEO_VULKAN
+// #if SDL_PLATFORM_SUPPORTS_METAL
+// #define SDL_VIDEO_VULKAN 1
+// #else
+// #define SDL_VIDEO_VULKAN 0
+// #endif
+// #endif
 
-#ifndef SDL_VIDEO_METAL
-#if SDL_PLATFORM_SUPPORTS_METAL
-#define SDL_VIDEO_METAL 1
-#else
-#define SDL_VIDEO_METAL 0
-#endif
-#endif
+// #ifndef SDL_VIDEO_METAL
+// #if SDL_PLATFORM_SUPPORTS_METAL
+// #define SDL_VIDEO_METAL 1
+// #else
+// #define SDL_VIDEO_METAL 0
+// #endif
+// #endif
 
 /* Enable system power support */
 #define SDL_POWER_MACOSX 1

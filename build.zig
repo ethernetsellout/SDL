@@ -3,6 +3,10 @@ const std = @import("std");
 pub const SdlOptions = struct {
     ///The enabled video implementations
     video_implementations: EnabledSdlVideoImplementations = .{},
+    ///The enabled video sub-implementations
+    video_sub_implementations: EnabledSdlVideoSubImplementations = .{},
+    ///The enabled render implementations
+    render_implementations: EnabledSdlRenderImplementations = .{},
     ///The enabled audio implementations
     audio_implementations: EnabledSdlAudioImplementations = .{},
     ///The enabled joystick implementations
@@ -42,6 +46,10 @@ pub fn getDefaultOptionsForTarget(target: std.zig.CrossTarget) SdlOptions {
         options.audio_implementations.aaudio = true;
         options.audio_implementations.dummy = true;
         options.loadso_implementation = .dlopen;
+
+        options.video_sub_implementations.opengl_es = true;
+        options.video_sub_implementations.opengl_es2 = true;
+        options.video_sub_implementations.opengl_egl = true;
 
         options.shared = true;
 
@@ -99,6 +107,11 @@ pub fn getDefaultOptionsForTarget(target: std.zig.CrossTarget) SdlOptions {
         options.haptic_implementation = .windows;
 
         options.loadso_implementation = .windows;
+
+        options.video_sub_implementations.opengl = true;
+        options.video_sub_implementations.opengl_wgl = true;
+        options.video_sub_implementations.opengl_es2 = true;
+        options.video_sub_implementations.opengl_egl = true;
     }
 
     if (target.isDarwin()) {
@@ -116,6 +129,17 @@ pub fn getDefaultOptionsForTarget(target: std.zig.CrossTarget) SdlOptions {
         options.video_implementations.cocoa = true;
 
         options.loadso_implementation = .dlopen;
+
+        options.video_sub_implementations.opengl = true;
+        options.video_sub_implementations.opengl_es2 = true;
+        options.video_sub_implementations.opengl_egl = true;
+        options.video_sub_implementations.opengl_cgl = true;
+        options.video_sub_implementations.opengl_glx = true;
+
+        options.video_sub_implementations.metal = true;
+
+        // #if SDL_PLATFORM_SUPPORTS_METAL
+        // options.video_sub_implementations.vulkan = true;
     }
 
     //Lets enable the dummy implementations by default on all platforms
@@ -264,6 +288,18 @@ const EnabledSdlVideoImplementations = struct {
     x11: bool = false,
 };
 
+const EnabledSdlVideoSubImplementations = struct {
+    opengl: bool = false, //SDL_VIDEO_OPENGL
+    opengl_es: bool = false, //SDL_VIDEO_OPENGL_ES
+    opengl_es2: bool = false, //SDL_VIDEO_OPENGL_ES2
+    opengl_egl: bool = false, //SDL_VIDEO_OPENGL_EGL
+    opengl_cgl: bool = false, //SDL_VIDEO_OPENGL_CGL
+    opengl_glx: bool = false, //SDL_VIDEO_OPENGL_GLX
+    opengl_wgl: bool = false, //SDL_VIDEO_OPENGL_WGL
+    metal: bool = false, //SDL_VIDEO_METAL
+    vulkan: bool = false, //SDL_VIDEO_VULKAN
+};
+
 //NOTE: these names need to stay the same as the folders in src/audio/
 const EnabledSdlAudioImplementations = struct {
     aaudio: bool = false,
@@ -297,6 +333,20 @@ const EnabledSdlAudioImplementations = struct {
     vita: bool = false,
     wasapi: bool = false,
     winmm: bool = false,
+};
+
+const EnabledSdlRenderImplementations = struct {
+    direct3d: bool = false,
+    direct3d11: bool = false,
+    direct3d12: bool = false,
+    metal: bool = false,
+    opengl: bool = false,
+    opengles: bool = false,
+    opengles2: bool = false,
+    ps2: bool = false,
+    psp: bool = false,
+    software: bool = false,
+    vitagxm: bool = false,
 };
 
 //lazy toUpper implementation, only supports ASCII strings
@@ -353,6 +403,44 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
         },
         else => {},
     }
+
+    { //SDL_VIDEO_X
+        if (sdl_options.video_sub_implementations.opengl) {
+            lib.defineCMacro("SDL_VIDEO_OPENGL", "1");
+        }
+
+        if (sdl_options.video_sub_implementations.opengl_es) {
+            lib.defineCMacro("SDL_VIDEO_OPENGL_ES", "1");
+        }
+
+        if (sdl_options.video_sub_implementations.opengl_es2) {
+            lib.defineCMacro("SDL_VIDEO_OPENGL_ES2", "1");
+        }
+
+        if (sdl_options.video_sub_implementations.opengl_egl) {
+            lib.defineCMacro("SDL_VIDEO_OPENGL_EGL", "1");
+        }
+
+        if (sdl_options.video_sub_implementations.opengl_cgl) {
+            lib.defineCMacro("SDL_VIDEO_OPENGL_CGL", "1");
+        }
+
+        if (sdl_options.video_sub_implementations.opengl_glx) {
+            lib.defineCMacro("SDL_VIDEO_OPENGL_GLX", "1");
+        }
+
+        if (sdl_options.video_sub_implementations.opengl_wgl) {
+            lib.defineCMacro("SDL_VIDEO_OPENGL_WGL", "1");
+        }
+
+        if (sdl_options.video_sub_implementations.metal) {
+            lib.defineCMacro("SDL_VIDEO_METAL", "1");
+        }
+
+        if (sdl_options.video_sub_implementations.vulkan) {
+            lib.defineCMacro("SDL_VIDEO_VULKAN", "1");
+        }
+    } //SDL_VIDEO_X
 
     lib.addIncludePath(root_path ++ "include");
     lib.addCSourceFiles(&generic_src_files, c_flags.items);
@@ -1066,14 +1154,14 @@ const generic_src_files = [_][]const u8{
     root_path ++ "src/video/dummy/SDL_nullframebuffer.c",
     root_path ++ "src/video/dummy/SDL_nullvideo.c",
 
-    root_path ++ "src/render/software/SDL_blendfillrect.c",
-    root_path ++ "src/render/software/SDL_blendline.c",
-    root_path ++ "src/render/software/SDL_blendpoint.c",
-    root_path ++ "src/render/software/SDL_drawline.c",
-    root_path ++ "src/render/software/SDL_drawpoint.c",
-    root_path ++ "src/render/software/SDL_render_sw.c",
-    root_path ++ "src/render/software/SDL_rotate.c",
-    root_path ++ "src/render/software/SDL_triangle.c",
+    // root_path ++ "src/render/software/SDL_blendfillrect.c",
+    // root_path ++ "src/render/software/SDL_blendline.c",
+    // root_path ++ "src/render/software/SDL_blendpoint.c",
+    // root_path ++ "src/render/software/SDL_drawline.c",
+    // root_path ++ "src/render/software/SDL_drawpoint.c",
+    // root_path ++ "src/render/software/SDL_render_sw.c",
+    // root_path ++ "src/render/software/SDL_rotate.c",
+    // root_path ++ "src/render/software/SDL_triangle.c",
 
     // root_path ++ "src/audio/dummy/SDL_dummyaudio.c",
 
@@ -1112,12 +1200,12 @@ const windows_src_files = [_][]const u8{
     root_path ++ "src/misc/windows/SDL_sysurl.c",
     root_path ++ "src/sensor/windows/SDL_windowssensor.c",
 
-    root_path ++ "src/render/direct3d/SDL_render_d3d.c",
-    root_path ++ "src/render/direct3d/SDL_shaders_d3d.c",
-    root_path ++ "src/render/direct3d11/SDL_render_d3d11.c",
-    root_path ++ "src/render/direct3d11/SDL_shaders_d3d11.c",
-    root_path ++ "src/render/direct3d12/SDL_render_d3d12.c",
-    root_path ++ "src/render/direct3d12/SDL_shaders_d3d12.c",
+    // root_path ++ "src/render/direct3d/SDL_render_d3d.c",
+    // root_path ++ "src/render/direct3d/SDL_shaders_d3d.c",
+    // root_path ++ "src/render/direct3d11/SDL_render_d3d11.c",
+    // root_path ++ "src/render/direct3d11/SDL_shaders_d3d11.c",
+    // root_path ++ "src/render/direct3d12/SDL_render_d3d12.c",
+    // root_path ++ "src/render/direct3d12/SDL_shaders_d3d12.c",
 
     // root_path ++ "src/audio/directsound/SDL_directsound.c",
     // root_path ++ "src/audio/wasapi/SDL_wasapi.c",
@@ -1125,11 +1213,11 @@ const windows_src_files = [_][]const u8{
     // root_path ++ "src/audio/winmm/SDL_winmm.c",
     // root_path ++ "src/audio/disk/SDL_diskaudio.c",
 
-    root_path ++ "src/render/opengl/SDL_render_gl.c",
-    root_path ++ "src/render/opengl/SDL_shaders_gl.c",
-    root_path ++ "src/render/opengles/SDL_render_gles.c",
-    root_path ++ "src/render/opengles2/SDL_render_gles2.c",
-    root_path ++ "src/render/opengles2/SDL_shaders_gles2.c",
+    // root_path ++ "src/render/opengl/SDL_render_gl.c",
+    // root_path ++ "src/render/opengl/SDL_shaders_gl.c",
+    // root_path ++ "src/render/opengles/SDL_render_gles.c",
+    // root_path ++ "src/render/opengles2/SDL_render_gles2.c",
+    // root_path ++ "src/render/opengles2/SDL_shaders_gles2.c",
 };
 
 const linux_src_files = [_][]const u8{
@@ -1176,11 +1264,11 @@ const darwin_src_files = [_][]const u8{
     // root_path ++ "src/power/macosx/SDL_syspower.c",
     root_path ++ "src/loadso/dlopen/SDL_sysloadso.c",
     // root_path ++ "src/audio/disk/SDL_diskaudio.c",
-    root_path ++ "src/render/opengl/SDL_render_gl.c",
-    root_path ++ "src/render/opengl/SDL_shaders_gl.c",
-    root_path ++ "src/render/opengles/SDL_render_gles.c",
-    root_path ++ "src/render/opengles2/SDL_render_gles2.c",
-    root_path ++ "src/render/opengles2/SDL_shaders_gles2.c",
+    // root_path ++ "src/render/opengl/SDL_render_gl.c",
+    // root_path ++ "src/render/opengl/SDL_shaders_gl.c",
+    // root_path ++ "src/render/opengles/SDL_render_gles.c",
+    // root_path ++ "src/render/opengles2/SDL_render_gles2.c",
+    // root_path ++ "src/render/opengles2/SDL_shaders_gles2.c",
     root_path ++ "src/sensor/dummy/SDL_dummysensor.c",
 };
 
@@ -1193,7 +1281,7 @@ const objective_c_src_files = [_][]const u8{
     //"src/joystick/apple/SDL_mfijoystick.m",
     root_path ++ "src/misc/macosx/SDL_sysurl.m",
     // root_path ++ "src/power/uikit/SDL_syspower.m",
-    root_path ++ "src/render/metal/SDL_render_metal.m",
+    // root_path ++ "src/render/metal/SDL_render_metal.m",
     root_path ++ "src/sensor/coremotion/SDL_coremotionsensor.m",
     root_path ++ "src/video/cocoa/SDL_cocoaclipboard.m",
     root_path ++ "src/video/cocoa/SDL_cocoaevents.m",
