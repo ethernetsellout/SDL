@@ -1098,7 +1098,7 @@ pub fn applyLinkerArgs(allocator: std.mem.Allocator, target: std.zig.CrossTarget
                 lib.linkSystemLibrary("pipewire-0.3");
             }
             if (sdl_options.audio_implementations.alsa) {
-                lib.linkSystemLibrary("alsa");
+                lib.linkSystemLibrary("asound");
             }
             if (sdl_options.audio_implementations.jack) {
                 lib.linkSystemLibrary("jack");
