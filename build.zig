@@ -51,6 +51,9 @@ pub fn getDefaultOptionsForTarget(target: std.zig.CrossTarget) SdlOptions {
         options.video_sub_implementations.opengl_es2 = true;
         options.video_sub_implementations.opengl_egl = true;
 
+        options.render_implementations.opengles = true;
+        options.render_implementations.opengles2 = true;
+
         options.shared = true;
 
         //Return out early to prevent later checks from returning true
@@ -64,6 +67,8 @@ pub fn getDefaultOptionsForTarget(target: std.zig.CrossTarget) SdlOptions {
         options.timer_implementation = .unix;
         options.locale_implementation = .unix;
         options.loadso_implementation = .dlopen;
+
+        options.render_implementations.opengl = true;
     }
 
     if (target.isLinux()) {
@@ -112,6 +117,11 @@ pub fn getDefaultOptionsForTarget(target: std.zig.CrossTarget) SdlOptions {
         options.video_sub_implementations.opengl_wgl = true;
         options.video_sub_implementations.opengl_es2 = true;
         options.video_sub_implementations.opengl_egl = true;
+
+        options.render_implementations.direct3d = true;
+        options.render_implementations.direct3d11 = true;
+        options.render_implementations.direct3d12 = true;
+        options.render_implementations.opengl = true;
     }
 
     if (target.isDarwin()) {
@@ -137,6 +147,8 @@ pub fn getDefaultOptionsForTarget(target: std.zig.CrossTarget) SdlOptions {
         options.video_sub_implementations.opengl_glx = true;
 
         options.video_sub_implementations.metal = true;
+
+        options.render_implementations.metal = true;
 
         // #if SDL_PLATFORM_SUPPORTS_METAL
         // options.video_sub_implementations.vulkan = true;
@@ -345,7 +357,7 @@ const EnabledSdlRenderImplementations = struct {
     opengles2: bool = false,
     ps2: bool = false,
     psp: bool = false,
-    software: bool = false,
+    software: bool = true,
     vitagxm: bool = false,
 };
 
@@ -544,6 +556,42 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
         }
     }
 
+    const riStructInfo: std.builtin.Type.Struct = @typeInfo(EnabledSdlRenderImplementations).Struct;
+    //Iterate over all fields on the video implementations struct
+    inline for (riStructInfo.fields) |field| {
+        var enabled: bool = @field(sdl_options.render_implementations, field.name);
+        //If its enabled in the options
+        if (enabled) {
+            //they arent consistent with their naming always :/
+            if (std.mem.eql(u8, field.name, "software")) { //ok
+                lib.defineCMacro("SDL_VIDEO_RENDER_SW", "1");
+            } else if (std.mem.eql(u8, field.name, "opengl")) { //ok
+                lib.defineCMacro("SDL_VIDEO_RENDER_OGL", "1");
+            } else if (std.mem.eql(u8, field.name, "opengles")) { //ok
+                lib.defineCMacro("SDL_VIDEO_RENDER_OGL_ES", "1");
+            } else if (std.mem.eql(u8, field.name, "opengles2")) { //ok
+                lib.defineCMacro("SDL_VIDEO_RENDER_OGL_ES2", "1");
+            } else if (std.mem.eql(u8, field.name, "direct3d")) { //ok
+                lib.defineCMacro("SDL_VIDEO_RENDER_OGL_D3D", "1");
+            } else if (std.mem.eql(u8, field.name, "direct3d11")) { //ok
+                lib.defineCMacro("SDL_VIDEO_RENDER_OGL_D3D11", "1");
+            } else if (std.mem.eql(u8, field.name, "direct3d12")) { //ok
+                lib.defineCMacro("SDL_VIDEO_RENDER_OGL_D3D12", "1");
+            } else if (std.mem.eql(u8, field.name, "vitagxm")) { //ok
+                lib.defineCMacro("SDL_VIDEO_RENDER_VITA_GXM", "1");
+            } else {
+                //Make the macro name
+                var name = try std.mem.concat(b.allocator, u8, &.{
+                    "SDL_VIDEO_RENDER_",
+                    try lazyToUpper(b.allocator, field.name),
+                });
+                //Set the macro to 1
+                lib.defineCMacro(name, "1");
+                // std.debug.print("enabling joystick driver {s} from {s} upper {s}\n", .{ name, field.name, try lazyToUpper(b.allocator, field.name) });
+            }
+        }
+    }
+
     switch (target.getOsTag()) {
         //TODO: figure out why when linking against our built SDL it causes a linker failure `__stack_chk_fail was replaced` on windows
         .windows => {
@@ -581,7 +629,7 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
         },
     }
 
-    try applyLinkerArgs(b.allocator, target, lib);
+    try applyLinkerArgs(b.allocator, target, lib, sdl_options);
 
     switch (sdl_options.thread_implementation) {
         //stdcpp and ngage have cpp code, so lets add exceptions for those, since find_c_cpp_sources separates the found c/cpp files
@@ -814,6 +862,7 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
         }
 
         if (sdl_options.audio_implementations.alsa) {
+            lib.addIncludePath(root_path ++ "alsa-include");
             lib.addCSourceFile(root_path ++ "src/audio/alsa/SDL_alsa_audio.c", c_flags.items);
         }
 
@@ -868,6 +917,7 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
         }
 
         if (sdl_options.audio_implementations.jack) {
+            lib.addIncludePath(root_path ++ "submodules/jack2/common");
             lib.addCSourceFile(root_path ++ "src/audio/jack/SDL_jackaudio.c", c_flags.items);
         }
 
@@ -901,6 +951,10 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
         }
 
         if (sdl_options.audio_implementations.pipewire) {
+            lib.addIncludePath(root_path ++ "pipewire-include");
+            lib.addIncludePath(root_path ++ "submodules/pipewire/src");
+            lib.addIncludePath(root_path ++ "submodules/pipewire/spa/include");
+
             lib.addCSourceFile(root_path ++ "src/audio/pipewire/SDL_pipewire.c", c_flags.items);
         }
 
@@ -913,6 +967,8 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
         }
 
         if (sdl_options.audio_implementations.pulseaudio) {
+            lib.addIncludePath(root_path ++ "submodules/pulseaudio/src");
+            lib.addIncludePath(root_path ++ "pulse-include");
             lib.addCSourceFile(root_path ++ "src/audio/pulseaudio/SDL_pulseaudio.c", c_flags.items);
         }
 
@@ -943,16 +999,113 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
         }
     } //audio implementations
 
+    { //render implementations
+        if (sdl_options.render_implementations.software) {
+            var source = try find_c_cpp_sources(b.allocator, root_path ++ "src/render/software/");
+
+            lib.addCSourceFiles(
+                source.c,
+                c_flags.items,
+            );
+        }
+
+        if (sdl_options.render_implementations.direct3d) {
+            lib.addCSourceFiles(
+                (try find_c_cpp_sources(b.allocator, root_path ++ "src/render/direct3d/")).c,
+                c_flags.items,
+            );
+        }
+
+        if (sdl_options.render_implementations.direct3d11) {
+            lib.addCSourceFiles(
+                (try find_c_cpp_sources(b.allocator, root_path ++ "src/render/direct3d11/")).c,
+                c_flags.items,
+            );
+        }
+
+        if (sdl_options.render_implementations.direct3d12) {
+            lib.addCSourceFiles(
+                (try find_c_cpp_sources(b.allocator, root_path ++ "src/render/direct3d12/")).c,
+                c_flags.items,
+            );
+        }
+
+        if (sdl_options.render_implementations.metal) {
+            lib.addCSourceFile(
+                "src/render/metal/SDL_render_metal.m",
+                try std.mem.concat(b.allocator, []const u8, &.{
+                    &.{"-fobjc-arc"},
+                    c_flags.items,
+                }),
+            );
+        }
+
+        if (sdl_options.render_implementations.opengl) {
+            lib.addCSourceFiles(
+                (try find_c_cpp_sources(b.allocator, root_path ++ "src/render/opengl/")).c,
+                c_flags.items,
+            );
+        }
+
+        if (sdl_options.render_implementations.opengles) {
+            lib.addCSourceFiles(
+                (try find_c_cpp_sources(b.allocator, root_path ++ "src/render/opengles/")).c,
+                c_flags.items,
+            );
+        }
+
+        if (sdl_options.render_implementations.opengles2) {
+            lib.addCSourceFiles(
+                (try find_c_cpp_sources(b.allocator, root_path ++ "src/render/opengles2/")).c,
+                c_flags.items,
+            );
+        }
+
+        if (sdl_options.render_implementations.ps2) {
+            lib.addCSourceFiles(
+                (try find_c_cpp_sources(b.allocator, root_path ++ "src/render/ps2/")).c,
+                c_flags.items,
+            );
+        }
+
+        if (sdl_options.render_implementations.psp) {
+            lib.addCSourceFiles(
+                (try find_c_cpp_sources(b.allocator, root_path ++ "src/render/psp/")).c,
+                c_flags.items,
+            );
+        }
+
+        if (sdl_options.render_implementations.vitagxm) {
+            lib.addCSourceFiles(
+                (try find_c_cpp_sources(b.allocator, root_path ++ "src/render/vitagxm/")).c,
+                c_flags.items,
+            );
+        }
+    } //render implementations
+
     lib.installHeadersDirectory(root_path ++ "include", "SDL2");
 
     return lib;
 }
 
-pub fn applyLinkerArgs(allocator: std.mem.Allocator, target: std.zig.CrossTarget, lib: *std.Build.CompileStep) !void {
+pub fn applyLinkerArgs(allocator: std.mem.Allocator, target: std.zig.CrossTarget, lib: *std.Build.CompileStep, sdl_options: SdlOptions) !void {
     switch (target.getOsTag()) {
         .linux => {
             lib.addIncludePath(root_path ++ "../system-sdk/linux/include");
             lib.addLibraryPath(try std.mem.concat(allocator, u8, &.{ root_path ++ "../system-sdk/linux/lib/", try target.linuxTriple(allocator) }));
+
+            if (sdl_options.audio_implementations.pipewire) {
+                lib.linkSystemLibrary("pipewire-0.3");
+            }
+            if (sdl_options.audio_implementations.alsa) {
+                lib.linkSystemLibrary("alsa");
+            }
+            if (sdl_options.audio_implementations.jack) {
+                lib.linkSystemLibrary("jack");
+            }
+            if (sdl_options.audio_implementations.pulseaudio) {
+                lib.linkSystemLibrary("pulse");
+            }
         },
         .macos => {
             lib.addFrameworkPath(root_path ++ "../system-sdk/macos12/System/Library/Frameworks");

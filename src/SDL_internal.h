@@ -109,9 +109,9 @@
    - creation of software renderer
    - *not* general blitting functions
    - {blend,draw}{fillrect,line,point} internal functions */
-#ifndef SDL_VIDEO_RENDER_SW
-#define SDL_VIDEO_RENDER_SW             !SDL_LEAN_AND_MEAN
-#endif
+// #ifndef SDL_VIDEO_RENDER_SW
+// #define SDL_VIDEO_RENDER_SW             !SDL_LEAN_AND_MEAN
+// #endif
 
 /* YUV formats
    - handling of YUV surfaces
