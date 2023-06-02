@@ -1,9 +1,6 @@
 [submodule "submodules/systemd"]
 	path = submodules/systemd
 	url = https://github.com/systemd/systemd/
-[submodule "submodules/pipewire"]
-	path = submodules/pipewire
-	url = https://github.com/PipeWire/pipewire/
 [submodule "submodules/jack2"]
 	path = submodules/jack2
 	url = https://github.com/jackaudio/jack2/

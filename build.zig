@@ -952,8 +952,6 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
 
         if (sdl_options.audio_implementations.pipewire) {
             lib.addIncludePath(root_path ++ "pipewire-include");
-            lib.addIncludePath(root_path ++ "submodules/pipewire/src");
-            lib.addIncludePath(root_path ++ "submodules/pipewire/spa/include");
 
             lib.addCSourceFile(root_path ++ "src/audio/pipewire/SDL_pipewire.c", c_flags.items);
         }
