@@ -967,7 +967,6 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
         }
 
         if (sdl_options.audio_implementations.pulseaudio) {
-            lib.addIncludePath(root_path ++ "submodules/pulseaudio/src");
             lib.addIncludePath(root_path ++ "pulse-include");
             lib.addCSourceFile(root_path ++ "src/audio/pulseaudio/SDL_pulseaudio.c", c_flags.items);
         }

@@ -7,6 +7,3 @@
 [submodule "submodules/jack2"]
 	path = submodules/jack2
 	url = https://github.com/jackaudio/jack2/
-[submodule "submodules/pulseaudio"]
-	path = submodules/pulseaudio
-	url = https://github.com/pulseaudio/pulseaudio/
