@@ -21,9 +21,15 @@ pub const SdlOptions = struct {
     locale_implementation: SdlLocaleImplementation = .dummy,
     ///The haptic implementation to use
     haptic_implementation: SdlHapticImplementation = .dummy,
+    ///The loadso implementation to use
     loadso_implementation: SdlLoadSoImplementation = .dummy,
     ///Whether or not to build SDL as a shared library
     shared: bool = false,
+
+    ///Path to a MacOS SDK
+    osx_sdk_path: ?[]const u8 = null,
+    ///Path to a Linux SDK
+    linux_sdk_path: ?[]const u8 = null,
 };
 
 ///Gets the default reccomended options for a particular CrossTarget
@@ -619,6 +625,7 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
             }
         },
         else => {
+            @panic("Unsupported OS! Please open a PR!");
             // const config_header = b.addConfigHeader(.{
             //     .style = .{ .cmake = .{ .path = root_path ++ "include/SDL_config.h.cmake" } },
             //     .include_path = root_path ++ "SDL2/SDL_config.h",
@@ -629,7 +636,7 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
         },
     }
 
-    try applyLinkerArgs(b.allocator, target, lib, sdl_options);
+    try applyLinkerArgs(b, target, lib, sdl_options);
 
     switch (sdl_options.thread_implementation) {
         //stdcpp and ngage have cpp code, so lets add exceptions for those, since find_c_cpp_sources separates the found c/cpp files
@@ -1085,11 +1092,25 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
     return lib;
 }
 
-pub fn applyLinkerArgs(allocator: std.mem.Allocator, target: std.zig.CrossTarget, lib: *std.Build.CompileStep, sdl_options: SdlOptions) !void {
+pub fn applyLinkerArgs(b: *std.Build, target: std.zig.CrossTarget, lib: *std.Build.CompileStep, sdl_options: SdlOptions) !void {
     switch (target.getOsTag()) {
         .linux => {
-            lib.addIncludePath(root_path ++ "../system-sdk/linux/include");
-            lib.addLibraryPath(try std.mem.concat(allocator, u8, &.{ root_path ++ "../system-sdk/linux/lib/", try target.linuxTriple(allocator) }));
+            if (sdl_options.linux_sdk_path) |linux_sdk_path| {
+                //If the last char is '/', throw an error
+                if (linux_sdk_path[linux_sdk_path.len - 1] == '/') {
+                    @panic("Linux SDK path must not end with '/'");
+                }
+
+                //Check if path is absolute
+                if (!std.fs.path.isAbsolute(linux_sdk_path)) {
+                    @panic("Linux SDK must be an absolute path!");
+                }
+
+                lib.addIncludePath(b.fmt("{s}/include", .{linux_sdk_path}));
+                lib.addLibraryPath(b.fmt("{s}/lib/{s}", .{ linux_sdk_path, try target.linuxTriple(b.allocator) }));
+            } else if (!target.isNative()) {
+                @panic("Linux SDK path must be provided when cross compiling!");
+            }
 
             if (sdl_options.audio_implementations.pipewire) {
                 lib.linkSystemLibrary("pipewire-0.3");
@@ -1105,9 +1126,23 @@ pub fn applyLinkerArgs(allocator: std.mem.Allocator, target: std.zig.CrossTarget
             }
         },
         .macos => {
-            lib.addFrameworkPath(root_path ++ "../system-sdk/macos12/System/Library/Frameworks");
-            lib.addSystemIncludePath(root_path ++ "../system-sdk/macos12/usr/include");
-            lib.addLibraryPath(root_path ++ "../system-sdk/macos12/usr/lib");
+            if (sdl_options.osx_sdk_path) |osx_sdk_path| {
+                //If the last char is '/', throw an error
+                if (osx_sdk_path[osx_sdk_path.len - 1] == '/') {
+                    @panic("MacOS SDK path must not end with '/'");
+                }
+
+                //Check if path is absolute
+                if (!std.fs.path.isAbsolute(osx_sdk_path)) {
+                    @panic("MacOS SDK must be an absolute path!");
+                }
+
+                lib.addFrameworkPath(b.fmt("{s}/System/Library/Frameworks", .{osx_sdk_path}));
+                lib.addSystemIncludePath(b.fmt("{s}/usr/include", .{osx_sdk_path}));
+                lib.addLibraryPath(b.fmt("{s}/usr/lib", .{osx_sdk_path}));
+            } else if (!target.isNative()) {
+                @panic("MacOS SDK path must be provided when cross compiling!");
+            }
 
             lib.linkSystemLibraryName("objc");
 
@@ -1137,6 +1172,9 @@ pub fn build(b: *std.Build) !void {
     var options = getDefaultOptionsForTarget(target);
 
     options.shared = b.option(bool, "shared", "Whether to build a shared or static library") orelse false;
+
+    options.osx_sdk_path = b.option([]const u8, "osx_sdk_path", "Path to a MacOS SDK, for cross compilation");
+    options.linux_sdk_path = b.option([]const u8, "linux_sdk_path", "Path to a Linux SDK, for cross compilation");
 
     b.installArtifact(try createSDL(b, target, optimize, options));
 }
