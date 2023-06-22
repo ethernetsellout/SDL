@@ -869,7 +869,6 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
         }
 
         if (sdl_options.audio_implementations.alsa) {
-            lib.addIncludePath(root_path ++ "alsa-include");
             lib.addCSourceFile(root_path ++ "src/audio/alsa/SDL_alsa_audio.c", c_flags.items);
         }
 
@@ -924,7 +923,6 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
         }
 
         if (sdl_options.audio_implementations.jack) {
-            lib.addIncludePath(root_path ++ "submodules/jack2/common");
             lib.addCSourceFile(root_path ++ "src/audio/jack/SDL_jackaudio.c", c_flags.items);
         }
 
@@ -958,8 +956,6 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
         }
 
         if (sdl_options.audio_implementations.pipewire) {
-            lib.addIncludePath(root_path ++ "pipewire-include");
-
             lib.addCSourceFile(root_path ++ "src/audio/pipewire/SDL_pipewire.c", c_flags.items);
         }
 
@@ -972,7 +968,6 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
         }
 
         if (sdl_options.audio_implementations.pulseaudio) {
-            lib.addIncludePath(root_path ++ "pulse-include");
             lib.addCSourceFile(root_path ++ "src/audio/pulseaudio/SDL_pulseaudio.c", c_flags.items);
         }
 
@@ -1113,7 +1108,7 @@ pub fn applyLinkerArgs(b: *std.Build, target: std.zig.CrossTarget, lib: *std.Bui
             }
 
             if (sdl_options.audio_implementations.pipewire) {
-                lib.linkSystemLibrary("pipewire-0.3");
+                lib.linkSystemLibrary("libpipewire-0.3");
             }
             if (sdl_options.audio_implementations.alsa) {
                 lib.linkSystemLibrary("asound");
