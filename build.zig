@@ -1108,7 +1108,7 @@ pub fn applyLinkerArgs(b: *std.Build, target: std.zig.CrossTarget, lib: *std.Bui
             }
 
             if (sdl_options.audio_implementations.pipewire) {
-                lib.linkSystemLibrary("pipewire-0.3");
+                lib.linkSystemLibrary("libpipewire-0.3");
             }
             if (sdl_options.audio_implementations.alsa) {
                 lib.linkSystemLibrary("asound");
@@ -1171,7 +1171,23 @@ pub fn build(b: *std.Build) !void {
     options.osx_sdk_path = b.option([]const u8, "osx_sdk_path", "Path to a MacOS SDK, for cross compilation");
     options.linux_sdk_path = b.option([]const u8, "linux_sdk_path", "Path to a Linux SDK, for cross compilation");
 
-    b.installArtifact(try createSDL(b, target, optimize, options));
+    var sdl = try createSDL(b, target, optimize, options);
+
+    b.installArtifact(sdl);
+
+    var example = b.addExecutable(.{
+        .name = "simple_example",
+        .root_source_file = .{ .path = "examples/simple.zig" },
+    });
+    //Link against SDL
+    example.linkLibrary(sdl);
+
+    b.installArtifact(example);
+
+    var example_run_artifact = b.addRunArtifact(example);
+
+    var example_run_step = b.step("simple_example", "Run the simple example");
+    example_run_step.dependOn(&example_run_artifact.step);
 }
 
 ///Finds all c/cpp sources in a folder recursively
