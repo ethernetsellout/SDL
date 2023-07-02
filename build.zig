@@ -1082,7 +1082,7 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
         }
     } //render implementations
 
-    lib.installHeadersDirectory(root_path ++ "include", "SDL2");
+    lib.installHeadersDirectory("include", "SDL2");
 
     return lib;
 }
