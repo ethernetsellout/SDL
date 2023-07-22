@@ -1103,8 +1103,6 @@ pub fn applyLinkerArgs(b: *std.Build, target: std.zig.CrossTarget, lib: *std.Bui
 
                 lib.addIncludePath(b.fmt("{s}/include", .{linux_sdk_path}));
                 lib.addLibraryPath(b.fmt("{s}/lib/{s}", .{ linux_sdk_path, try target.linuxTriple(b.allocator) }));
-            } else if (!target.isNative()) {
-                @panic("Linux SDK path must be provided when cross compiling!");
             }
 
             if (sdl_options.audio_implementations.pipewire) {
@@ -1135,8 +1133,6 @@ pub fn applyLinkerArgs(b: *std.Build, target: std.zig.CrossTarget, lib: *std.Bui
                 lib.addFrameworkPath(b.fmt("{s}/System/Library/Frameworks", .{osx_sdk_path}));
                 lib.addSystemIncludePath(b.fmt("{s}/usr/include", .{osx_sdk_path}));
                 lib.addLibraryPath(b.fmt("{s}/usr/lib", .{osx_sdk_path}));
-            } else if (!target.isNative()) {
-                @panic("MacOS SDK path must be provided when cross compiling!");
             }
 
             lib.linkSystemLibraryName("objc");
