@@ -625,7 +625,7 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
             }
         },
         else => {
-            @panic("Unsupported OS! Please open a PR!");
+            std.log.err("Unsupported OS! Please open a PR!", .{});
             // const config_header = b.addConfigHeader(.{
             //     .style = .{ .cmake = .{ .path = root_path ++ "include/SDL_config.h.cmake" } },
             //     .include_path = root_path ++ "SDL2/SDL_config.h",
@@ -1093,12 +1093,12 @@ pub fn applyLinkerArgs(b: *std.Build, target: std.zig.CrossTarget, lib: *std.Bui
             if (sdl_options.linux_sdk_path) |linux_sdk_path| {
                 //If the last char is '/', throw an error
                 if (linux_sdk_path[linux_sdk_path.len - 1] == '/') {
-                    @panic("Linux SDK path must not end with '/'");
+                    std.log.err("Linux SDK path must not end with '/'", .{});
                 }
 
                 //Check if path is absolute
                 if (!std.fs.path.isAbsolute(linux_sdk_path)) {
-                    @panic("Linux SDK must be an absolute path!");
+                    std.log.err("Linux SDK must be an absolute path!", .{});
                 }
 
                 lib.addIncludePath(b.fmt("{s}/include", .{linux_sdk_path}));
@@ -1122,12 +1122,12 @@ pub fn applyLinkerArgs(b: *std.Build, target: std.zig.CrossTarget, lib: *std.Bui
             if (sdl_options.osx_sdk_path) |osx_sdk_path| {
                 //If the last char is '/', throw an error
                 if (osx_sdk_path[osx_sdk_path.len - 1] == '/') {
-                    @panic("MacOS SDK path must not end with '/'");
+                    std.log.err("MacOS SDK path must not end with '/'", .{});
                 }
 
                 //Check if path is absolute
                 if (!std.fs.path.isAbsolute(osx_sdk_path)) {
-                    @panic("MacOS SDK must be an absolute path!");
+                    std.log.err("MacOS SDK must be an absolute path!", .{});
                 }
 
                 lib.addFrameworkPath(b.fmt("{s}/System/Library/Frameworks", .{osx_sdk_path}));
