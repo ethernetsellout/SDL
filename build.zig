@@ -394,7 +394,7 @@ pub fn createSDL(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
 
     var c_flags = std.ArrayList([]const u8).init(b.allocator);
 
-    // try c_flags.append("-std=c99");
+    try c_flags.append("-fno-sanitize=undefined");
 
     //workaround some parsing issues in the macos system-sdk in use
     lib.defineCMacro("__kernel_ptr_semantics", "");
